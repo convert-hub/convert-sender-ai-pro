@@ -17,6 +17,9 @@ interface DispatchContextType {
   history: DispatchHistory[];
   addToHistory: (entry: DispatchHistory) => void;
   
+  webhookUrl: string;
+  setWebhookUrl: (url: string) => void;
+  
   stats: {
     uploads_total: number;
     rows_total: number;
@@ -32,12 +35,20 @@ interface DispatchContextType {
 
 const DispatchContext = createContext<DispatchContextType | undefined>(undefined);
 
+const DEFAULT_WEBHOOK_URL = 'https://n8n.converthub.com.br/webhook/disparos-precatorizei';
+const STORAGE_KEY = 'dispatch_webhook_url';
+
 export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [sheetMeta, setSheetMeta] = useState<SheetMeta | null>(null);
   const [columnMapping, setColumnMapping] = useState<ColumnMapping | null>(null);
   const [batches, setBatches] = useState<BatchInfo[]>([]);
   const [history, setHistory] = useState<DispatchHistory[]>([]);
+  const [webhookUrl, setWebhookUrlState] = useState<string>(() => {
+    // Load from localStorage or use default
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored || DEFAULT_WEBHOOK_URL;
+  });
   const [stats, setStats] = useState({
     uploads_total: 0,
     rows_total: 0,
@@ -46,6 +57,11 @@ export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     batches_total: 0,
     batches_sent: 0,
   });
+
+  const setWebhookUrl = (url: string) => {
+    setWebhookUrlState(url);
+    localStorage.setItem(STORAGE_KEY, url);
+  };
 
   const addToHistory = (entry: DispatchHistory) => {
     setHistory(prev => [entry, ...prev]);
@@ -75,6 +91,8 @@ export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setBatches,
         history,
         addToHistory,
+        webhookUrl,
+        setWebhookUrl,
         stats,
         updateStats,
         reset,

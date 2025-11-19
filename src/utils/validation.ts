@@ -31,6 +31,38 @@ export const normalizeName = (name: string): string => {
   return name.trim();
 };
 
+export const validateWebhookUrl = (url: string): { valid: boolean; error?: string } => {
+  if (!url || url.trim() === '') {
+    return {
+      valid: false,
+      error: 'URL não pode estar vazia',
+    };
+  }
+
+  try {
+    const urlObj = new URL(url);
+    
+    if (!urlObj.protocol.startsWith('http')) {
+      return {
+        valid: false,
+        error: 'URL deve usar protocolo HTTP ou HTTPS',
+      };
+    }
+
+    if (urlObj.protocol === 'http:') {
+      // Warning but still valid
+      console.warn('Usando HTTP ao invés de HTTPS. Recomenda-se usar HTTPS para segurança.');
+    }
+
+    return { valid: true };
+  } catch {
+    return {
+      valid: false,
+      error: 'Formato de URL inválido',
+    };
+  }
+};
+
 export const validateContact = (row: Record<string, string>, mapping: ColumnMapping): {
   isValid: boolean;
   contact: Contact | null;
