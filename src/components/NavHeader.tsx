@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Settings, History, Send } from "lucide-react";
+import { Settings, History, Send, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useDispatch } from "@/contexts/DispatchContext";
 import { Stepper } from "./Stepper";
@@ -36,6 +36,16 @@ export const NavHeader = () => {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/dashboard")}
+            className="relative"
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Dashboard</span>
+          </Button>
+
           <Button
             variant="ghost"
             size="sm"
