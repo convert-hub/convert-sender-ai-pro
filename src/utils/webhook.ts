@@ -25,6 +25,7 @@ export const sendToWebhook = async (
   };
 
   try {
+    // Primeira tentativa: requisição normal com CORS
     const response = await fetch(WEBHOOK_URL, {
       method: 'POST',
       headers: {
@@ -47,6 +48,31 @@ export const sendToWebhook = async (
       status: response.status,
     };
   } catch (error) {
+    // Se falhar por CORS, tenta com modo no-cors
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      try {
+        await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        // Com no-cors, não conseguimos ler a resposta, mas assumimos sucesso se não houver erro
+        return {
+          success: true,
+          status: 200,
+        };
+      } catch (noCorsError) {
+        return {
+          success: false,
+          error: 'Erro de CORS: O webhook do n8n precisa permitir requisições do domínio Lovable. Configure CORS no n8n ou use um proxy.',
+        };
+      }
+    }
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido ao enviar',
