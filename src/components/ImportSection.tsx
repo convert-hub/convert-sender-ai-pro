@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, Link, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Upload, Link, FileSpreadsheet, Loader2, Settings } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -125,6 +125,17 @@ export const ImportSection = () => {
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-5xl">
+      <div className="flex justify-end mb-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate('/settings')}
+          title="Configurações"
+        >
+          <Settings className="h-5 w-5" />
+        </Button>
+      </div>
+      
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold mb-4">Disparos em Lote</h1>
         <p className="text-lg text-muted-foreground">

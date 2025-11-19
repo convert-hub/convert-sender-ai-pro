@@ -21,7 +21,7 @@ import { Label } from '@/components/ui/label';
 
 export const BatchesSection = () => {
   const navigate = useNavigate();
-  const { batches, setBatches, columnMapping, sheetMeta, addToHistory, updateStats } = useDispatch();
+  const { batches, setBatches, columnMapping, sheetMeta, addToHistory, updateStats, webhookUrl } = useDispatch();
   
   const [selectedBatch, setSelectedBatch] = useState<BatchInfo | null>(null);
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
@@ -62,7 +62,7 @@ export const BatchesSection = () => {
       })),
     };
 
-    const result = await sendToWebhook(batchToSend, mappingForSend, sheetMeta);
+    const result = await sendToWebhook(batchToSend, mappingForSend, sheetMeta, webhookUrl);
 
     if (result.success) {
       // Update batch status
