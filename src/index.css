@@ -17,16 +17,17 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 217 91% 60%;
+    --primary: 262 83% 58%;
     --primary-foreground: 0 0% 100%;
+    --primary-glow: 262 83% 68%;
 
-    --secondary: 214 32% 91%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 221 83% 53%;
+    --secondary-foreground: 0 0% 100%;
 
     --muted: 210 40% 96%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 142 71% 45%;
+    --accent: 142 76% 36%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
@@ -38,7 +39,7 @@ All colors MUST be HSL.
 
     --radius: 1rem;
     
-    --success: 142 71% 45%;
+    --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
     
     --warning: 38 92% 50%;
@@ -46,6 +47,11 @@ All colors MUST be HSL.
     
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%) 0%, hsl(221 83% 53%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(142 76% 28%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(262 83% 58% / 0.1) 0%, hsl(221 83% 53% / 0.1) 100%);
 
     --sidebar-background: 0 0% 98%;
 
@@ -74,16 +80,17 @@ All colors MUST be HSL.
     --popover: 217 33% 17%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 217 91% 60%;
+    --primary: 262 83% 58%;
     --primary-foreground: 0 0% 100%;
+    --primary-glow: 262 83% 68%;
 
-    --secondary: 217 33% 20%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 221 83% 53%;
+    --secondary-foreground: 0 0% 100%;
 
     --muted: 217 33% 20%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 142 71% 45%;
+    --accent: 142 76% 36%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 63% 31%;
@@ -93,7 +100,7 @@ All colors MUST be HSL.
     --input: 217 33% 20%;
     --ring: 217 91% 60%;
     
-    --success: 142 71% 45%;
+    --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
     
     --warning: 38 92% 50%;
@@ -101,6 +108,11 @@ All colors MUST be HSL.
     
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
+    
+    /* Gradients Dark Mode */
+    --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%) 0%, hsl(221 83% 53%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(142 76% 28%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(262 83% 58% / 0.15) 0%, hsl(221 83% 53% / 0.15) 100%);
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
