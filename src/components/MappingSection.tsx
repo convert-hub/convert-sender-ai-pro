@@ -55,7 +55,10 @@ export const MappingSection = () => {
   const handleGenerateBatches = () => {
     if (!parsedData) return;
 
-    if (!emailCol && !phoneCol) {
+    const actualEmailCol = emailCol === 'none' ? '' : emailCol;
+    const actualPhoneCol = phoneCol === 'none' ? '' : phoneCol;
+
+    if (!actualEmailCol && !actualPhoneCol) {
       toast({
         title: 'Mapeamento incompleto',
         description: 'Você deve mapear ao menos Email ou Telefone',
@@ -65,9 +68,9 @@ export const MappingSection = () => {
     }
 
     const mapping = {
-      name: nameCol,
-      email: emailCol,
-      phone: phoneCol,
+      name: nameCol === 'none' ? '' : nameCol,
+      email: actualEmailCol,
+      phone: actualPhoneCol,
       extras: extraCols,
     };
 
@@ -93,7 +96,7 @@ export const MappingSection = () => {
 
   const availableHeaders = parsedData.headers;
   const extraHeaders = availableHeaders.filter(
-    h => h !== nameCol && h !== emailCol && h !== phoneCol
+    h => h !== nameCol && h !== emailCol && h !== phoneCol && nameCol !== 'none' && emailCol !== 'none' && phoneCol !== 'none'
   );
 
   return (
@@ -128,7 +131,7 @@ export const MappingSection = () => {
                 <SelectValue placeholder="Selecione a coluna" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nenhuma</SelectItem>
+                <SelectItem value="none">Nenhuma</SelectItem>
                 {availableHeaders.map(h => (
                   <SelectItem key={h} value={h}>
                     {h}
@@ -145,7 +148,7 @@ export const MappingSection = () => {
                 <SelectValue placeholder="Selecione a coluna" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nenhuma</SelectItem>
+                <SelectItem value="none">Nenhuma</SelectItem>
                 {availableHeaders.map(h => (
                   <SelectItem key={h} value={h}>
                     {h}
@@ -162,7 +165,7 @@ export const MappingSection = () => {
                 <SelectValue placeholder="Selecione a coluna" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nenhuma</SelectItem>
+                <SelectItem value="none">Nenhuma</SelectItem>
                 {availableHeaders.map(h => (
                   <SelectItem key={h} value={h}>
                     {h}
@@ -214,17 +217,17 @@ export const MappingSection = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  {nameCol && (
+                  {nameCol && nameCol !== 'none' && (
                     <th className="text-left p-2">
                       <Badge variant="secondary">Nome</Badge>
                     </th>
                   )}
-                  {emailCol && (
+                  {emailCol && emailCol !== 'none' && (
                     <th className="text-left p-2">
                       <Badge variant="secondary">Email</Badge>
                     </th>
                   )}
-                  {phoneCol && (
+                  {phoneCol && phoneCol !== 'none' && (
                     <th className="text-left p-2">
                       <Badge variant="secondary">Telefone</Badge>
                     </th>
@@ -239,9 +242,9 @@ export const MappingSection = () => {
               <tbody>
                 {parsedData.rows.slice(0, 3).map((row, idx) => (
                   <tr key={idx} className="border-b">
-                    {nameCol && <td className="p-2">{row[nameCol]}</td>}
-                    {emailCol && <td className="p-2">{row[emailCol]}</td>}
-                    {phoneCol && <td className="p-2">{row[phoneCol]}</td>}
+                    {nameCol && nameCol !== 'none' && <td className="p-2">{row[nameCol]}</td>}
+                    {emailCol && emailCol !== 'none' && <td className="p-2">{row[emailCol]}</td>}
+                    {phoneCol && phoneCol !== 'none' && <td className="p-2">{row[phoneCol]}</td>}
                     {extraCols.map(col => (
                       <td key={col} className="p-2">
                         {row[col]}
@@ -259,7 +262,7 @@ export const MappingSection = () => {
         <Button
           size="lg"
           onClick={handleGenerateBatches}
-          disabled={!emailCol && !phoneCol}
+          disabled={(!emailCol || emailCol === 'none') && (!phoneCol || phoneCol === 'none')}
         >
           Gerar Blocos de 50
           <ArrowRight className="ml-2 h-4 w-4" />
