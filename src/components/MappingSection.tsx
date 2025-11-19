@@ -1,0 +1,270 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowRight, ArrowLeft } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { toast } from '@/hooks/use-toast';
+import { useDispatch } from '@/contexts/DispatchContext';
+import { createBatches } from '@/utils/validation';
+import { Badge } from '@/components/ui/badge';
+
+export const MappingSection = () => {
+  const navigate = useNavigate();
+  const { parsedData, setColumnMapping, setBatches, updateStats } = useDispatch();
+  
+  const [nameCol, setNameCol] = useState('');
+  const [emailCol, setEmailCol] = useState('');
+  const [phoneCol, setPhoneCol] = useState('');
+  const [extraCols, setExtraCols] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!parsedData) {
+      navigate('/');
+      return;
+    }
+
+    // Auto-detect columns
+    const headers = parsedData.headers;
+    
+    const findColumn = (keywords: string[]) => {
+      return headers.find(h =>
+        keywords.some(k => h.toLowerCase().includes(k.toLowerCase()))
+      ) || '';
+    };
+
+    setNameCol(findColumn(['nome', 'name']));
+    setEmailCol(findColumn(['email', 'e-mail']));
+    setPhoneCol(findColumn(['telefone', 'phone', 'celular', 'tel']));
+  }, [parsedData, navigate]);
+
+  const handleExtraColToggle = (col: string) => {
+    setExtraCols(prev =>
+      prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
+    );
+  };
+
+  const handleGenerateBatches = () => {
+    if (!parsedData) return;
+
+    if (!emailCol && !phoneCol) {
+      toast({
+        title: 'Mapeamento incompleto',
+        description: 'Você deve mapear ao menos Email ou Telefone',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const mapping = {
+      name: nameCol,
+      email: emailCol,
+      phone: phoneCol,
+      extras: extraCols,
+    };
+
+    const result = createBatches(parsedData.rows, mapping);
+
+    setColumnMapping(mapping);
+    setBatches(result.batches);
+    updateStats({
+      rows_valid: result.stats.valid,
+      rows_invalid: result.stats.invalid,
+      batches_total: result.batches.length,
+    });
+
+    toast({
+      title: 'Blocos gerados!',
+      description: `${result.batches.length} blocos de até 50 contatos criados`,
+    });
+
+    navigate('/batches');
+  };
+
+  if (!parsedData) return null;
+
+  const availableHeaders = parsedData.headers;
+  const extraHeaders = availableHeaders.filter(
+    h => h !== nameCol && h !== emailCol && h !== phoneCol
+  );
+
+  return (
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="mb-8">
+        <Button
+          variant="ghost"
+          onClick={() => navigate('/')}
+          className="mb-4"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Voltar
+        </Button>
+        <h1 className="text-3xl font-bold mb-2">Mapear Colunas</h1>
+        <p className="text-muted-foreground">
+          Identifique quais colunas correspondem aos campos obrigatórios
+        </p>
+      </div>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Campos Obrigatórios</CardTitle>
+          <CardDescription>
+            Ao menos Email ou Telefone deve ser mapeado
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <Label htmlFor="name-col">Nome (opcional)</Label>
+            <Select value={nameCol} onValueChange={setNameCol}>
+              <SelectTrigger id="name-col">
+                <SelectValue placeholder="Selecione a coluna" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Nenhuma</SelectItem>
+                {availableHeaders.map(h => (
+                  <SelectItem key={h} value={h}>
+                    {h}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="email-col">Email</Label>
+            <Select value={emailCol} onValueChange={setEmailCol}>
+              <SelectTrigger id="email-col">
+                <SelectValue placeholder="Selecione a coluna" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Nenhuma</SelectItem>
+                {availableHeaders.map(h => (
+                  <SelectItem key={h} value={h}>
+                    {h}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="phone-col">Telefone</Label>
+            <Select value={phoneCol} onValueChange={setPhoneCol}>
+              <SelectTrigger id="phone-col">
+                <SelectValue placeholder="Selecione a coluna" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Nenhuma</SelectItem>
+                {availableHeaders.map(h => (
+                  <SelectItem key={h} value={h}>
+                    {h}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {extraHeaders.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Campos Extras (opcional)</CardTitle>
+            <CardDescription>
+              Selecione campos adicionais para incluir no envio
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              {extraHeaders.map(h => (
+                <div key={h} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`extra-${h}`}
+                    checked={extraCols.includes(h)}
+                    onCheckedChange={() => handleExtraColToggle(h)}
+                  />
+                  <label
+                    htmlFor={`extra-${h}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    {h}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Pré-visualização</CardTitle>
+          <CardDescription>Primeiras 3 linhas da planilha</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  {nameCol && (
+                    <th className="text-left p-2">
+                      <Badge variant="secondary">Nome</Badge>
+                    </th>
+                  )}
+                  {emailCol && (
+                    <th className="text-left p-2">
+                      <Badge variant="secondary">Email</Badge>
+                    </th>
+                  )}
+                  {phoneCol && (
+                    <th className="text-left p-2">
+                      <Badge variant="secondary">Telefone</Badge>
+                    </th>
+                  )}
+                  {extraCols.map(col => (
+                    <th key={col} className="text-left p-2">
+                      <Badge variant="outline">{col}</Badge>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {parsedData.rows.slice(0, 3).map((row, idx) => (
+                  <tr key={idx} className="border-b">
+                    {nameCol && <td className="p-2">{row[nameCol]}</td>}
+                    {emailCol && <td className="p-2">{row[emailCol]}</td>}
+                    {phoneCol && <td className="p-2">{row[phoneCol]}</td>}
+                    {extraCols.map(col => (
+                      <td key={col} className="p-2">
+                        {row[col]}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button
+          size="lg"
+          onClick={handleGenerateBatches}
+          disabled={!emailCol && !phoneCol}
+        >
+          Gerar Blocos de 50
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+};
