@@ -13,7 +13,7 @@ interface RecentHistoryProps {
 
 export const RecentHistory = ({ limit = 5 }: RecentHistoryProps) => {
   const navigate = useNavigate();
-  const { history } = useDispatch();
+  const { history, clearHistory } = useDispatch();
 
   const recentEntries = history.slice(0, limit);
 
@@ -38,15 +38,29 @@ export const RecentHistory = ({ limit = 5 }: RecentHistoryProps) => {
           <span className="text-2xl">🕐</span>
           Últimos Disparos
         </h2>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate('/history')}
-          className="group"
-        >
-          Ver Histórico Completo
-          <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (confirm('Tem certeza que deseja limpar todo o histórico?')) {
+                clearHistory();
+              }
+            }}
+            className="text-destructive hover:text-destructive"
+          >
+            Limpar Histórico
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/history')}
+            className="group"
+          >
+            Ver Histórico Completo
+            <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+          </Button>
+        </div>
       </div>
 
       <Card>

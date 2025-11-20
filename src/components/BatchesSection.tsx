@@ -21,7 +21,7 @@ import { Label } from '@/components/ui/label';
 
 export const BatchesSection = () => {
   const navigate = useNavigate();
-  const { batches, setBatches, columnMapping, sheetMeta, addToHistory, updateStats, webhookUrl } = useDispatch();
+  const { batches, setBatches, columnMapping, sheetMeta, addToHistory, incrementStats, webhookUrl } = useDispatch();
   
   const [selectedBatch, setSelectedBatch] = useState<BatchInfo | null>(null);
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
@@ -83,8 +83,8 @@ export const BatchesSection = () => {
         response_status: result.status,
       });
 
-      updateStats({
-        batches_sent: batches.filter(b => b.status === 'sent').length + 1,
+      incrementStats({
+        batches_sent: 1,
       });
 
       toast({

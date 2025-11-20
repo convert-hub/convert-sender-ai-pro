@@ -14,7 +14,7 @@ export const QuickActions = () => {
   const [sheetUrl, setSheetUrl] = useState('');
   const [showUrlInput, setShowUrlInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { setParsedData, setSheetMeta, updateStats } = useDispatch();
+  const { setParsedData, setSheetMeta, incrementStats } = useDispatch();
   const navigate = useNavigate();
 
   const handleFileUpload = async (file: File) => {
@@ -38,7 +38,7 @@ export const QuickActions = () => {
         total_rows: data.rows.length,
       });
       
-      updateStats({
+      incrementStats({
         uploads_total: 1,
         rows_total: data.rows.length,
       });
@@ -81,7 +81,7 @@ export const QuickActions = () => {
         total_rows: data.rows.length,
       });
       
-      updateStats({
+      incrementStats({
         uploads_total: 1,
         rows_total: data.rows.length,
       });
@@ -114,7 +114,7 @@ export const QuickActions = () => {
       total_rows: data.rows.length,
     });
     
-    updateStats({
+    incrementStats({
       uploads_total: 1,
       rows_total: data.rows.length,
     });
