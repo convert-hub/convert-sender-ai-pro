@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 export const ImportSection = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [sheetUrl, setSheetUrl] = useState('');
-  const { setParsedData, setSheetMeta, updateStats } = useDispatch();
+  const { setParsedData, setSheetMeta, incrementStats } = useDispatch();
   const navigate = useNavigate();
 
   const handleFileUpload = async (file: File) => {
@@ -36,7 +36,7 @@ export const ImportSection = () => {
         total_rows: data.rows.length,
       });
       
-      updateStats({
+      incrementStats({
         uploads_total: 1,
         rows_total: data.rows.length,
       });
@@ -79,7 +79,7 @@ export const ImportSection = () => {
         total_rows: data.rows.length,
       });
       
-      updateStats({
+      incrementStats({
         uploads_total: 1,
         rows_total: data.rows.length,
       });
@@ -110,7 +110,7 @@ export const ImportSection = () => {
       total_rows: data.rows.length,
     });
     
-    updateStats({
+    incrementStats({
       uploads_total: 1,
       rows_total: data.rows.length,
     });
