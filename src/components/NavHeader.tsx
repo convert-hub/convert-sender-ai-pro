@@ -1,9 +1,10 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Settings, History, Send } from "lucide-react";
+import { Settings, History } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useDispatch } from "@/contexts/DispatchContext";
 import { Stepper } from "./Stepper";
+import logo from "@/assets/logo.png";
 
 export const NavHeader = () => {
   const navigate = useNavigate();
@@ -17,16 +18,10 @@ export const NavHeader = () => {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
         <div 
-          className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+          className="flex items-center cursor-pointer hover:opacity-80 transition-opacity"
           onClick={() => navigate("/")}
         >
-          <div className="relative">
-            <Send className="h-6 w-6 text-primary" />
-            <div className="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full animate-pulse" />
-          </div>
-          <span className="font-bold text-lg bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-            Disparador Pro
-          </span>
+          <img src={logo} alt="Convert Sender A.I." className="h-10" />
         </div>
 
         {/* Stepper */}
