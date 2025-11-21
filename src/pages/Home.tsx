@@ -8,6 +8,7 @@ import { LineChart, Line, PieChart, Pie, XAxis, YAxis, CartesianGrid, Cell, Resp
 import { useDispatch } from '@/contexts/DispatchContext';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import logo from '@/assets/logo.png';
 
 const Home = () => {
   const { history } = useDispatch();
@@ -57,10 +58,10 @@ const Home = () => {
     <Layout>
       <div className="space-y-8">
         {/* Hero Section */}
-        <div className="text-center space-y-2 py-6">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent animate-fade-in">
-            Disparador Pro
-          </h1>
+        <div className="text-center space-y-4 py-6">
+          <div className="flex justify-center animate-fade-in">
+            <img src={logo} alt="Convert Sender A.I." className="h-16" />
+          </div>
           <p className="text-muted-foreground text-lg animate-fade-in" style={{ animationDelay: '100ms' }}>
             Seu centro de controle para disparos em massa
           </p>
