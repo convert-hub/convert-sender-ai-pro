@@ -1,3 +1,6 @@
+@import url("https://fonts.googleapis.com/css2?family=Montserrat&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=EB+Garamond&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -17,11 +20,11 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 262 83% 58%;
+    --primary: 164 50.9615% 59.2157%;
     --primary-foreground: 0 0% 100%;
     --primary-glow: 262 83% 68%;
 
-    --secondary: 221 83% 53%;
+    --secondary: 214 87.4346% 62.549%;
     --secondary-foreground: 0 0% 100%;
 
     --muted: 210 40% 96%;
@@ -38,16 +41,16 @@ All colors MUST be HSL.
     --ring: 217 91% 60%;
 
     --radius: 1rem;
-    
+
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
-    
+
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    
+
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
-    
+
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%) 0%, hsl(221 83% 53%) 100%);
     --gradient-success: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(142 76% 28%) 100%);
@@ -68,6 +71,12 @@ All colors MUST be HSL.
     --sidebar-border: 220 13% 91%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --font-sans: Montserrat, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+
+    --font-serif: "EB Garamond", ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
+
+    --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
   }
 
   .dark {
@@ -99,16 +108,16 @@ All colors MUST be HSL.
     --border: 217 33% 20%;
     --input: 217 33% 20%;
     --ring: 217 91% 60%;
-    
+
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
-    
+
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    
+
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
-    
+
     /* Gradients Dark Mode */
     --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%) 0%, hsl(221 83% 53%) 100%);
     --gradient-success: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(142 76% 28%) 100%);
@@ -121,6 +130,9 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    --font-sans: Montserrat, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+    --font-serif: "EB Garamond", ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
+    --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
   }
 }
 
