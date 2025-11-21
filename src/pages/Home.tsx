@@ -1,14 +1,25 @@
-import { Layout } from '@/components/Layout';
-import { StatsOverview } from '@/components/StatsOverview';
-import { QuickActions } from '@/components/QuickActions';
-import { RecentHistory } from '@/components/RecentHistory';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { LineChart, Line, PieChart, Pie, XAxis, YAxis, CartesianGrid, Cell, ResponsiveContainer, Legend } from 'recharts';
-import { useDispatch } from '@/contexts/DispatchContext';
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import logo from '@/assets/logo.png';
+import { Layout } from "@/components/Layout";
+import { StatsOverview } from "@/components/StatsOverview";
+import { QuickActions } from "@/components/QuickActions";
+import { RecentHistory } from "@/components/RecentHistory";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import {
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+import { useDispatch } from "@/contexts/DispatchContext";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import logo from "@/assets/logo.png";
 
 const Home = () => {
   const { history } = useDispatch();
@@ -19,8 +30,8 @@ const Home = () => {
     .reverse()
     .map((entry, index) => ({
       id: index,
-      date: format(parseISO(entry.timestamp), 'dd/MM HH:mm', { locale: ptBR }),
-      taxa: entry.status === 'success' ? 100 : 0,
+      date: format(parseISO(entry.timestamp), "dd/MM HH:mm", { locale: ptBR }),
+      taxa: entry.status === "success" ? 100 : 0,
       contatos: entry.contacts_count,
     }));
 
@@ -36,16 +47,16 @@ const Home = () => {
   // Distribution by status
   const statusData = [
     {
-      name: 'Sucesso',
-      value: history.filter(h => h.status === 'success').length,
-      color: 'hsl(var(--success))',
+      name: "Sucesso",
+      value: history.filter((h) => h.status === "success").length,
+      color: "hsl(var(--success))",
     },
     {
-      name: 'Erro',
-      value: history.filter(h => h.status === 'error').length,
-      color: 'hsl(var(--destructive))',
+      name: "Erro",
+      value: history.filter((h) => h.status === "error").length,
+      color: "hsl(var(--destructive))",
     },
-  ].filter(item => item.value > 0);
+  ].filter((item) => item.value > 0);
 
   const chartConfig = {
     taxa: {
@@ -62,8 +73,8 @@ const Home = () => {
           <div className="flex justify-center animate-fade-in">
             <img src={logo} alt="Convert Sender A.I." className="h-16" />
           </div>
-          <p className="text-muted-foreground text-lg animate-fade-in" style={{ animationDelay: '100ms' }}>
-            Seu centro de controle para disparos em massa
+          <p className="text-muted-foreground text-lg animate-fade-in" style={{ animationDelay: "100ms" }}>
+            Seus disparos em massa feito de forma mais segura e inteligente
           </p>
         </div>
 
@@ -77,11 +88,9 @@ const Home = () => {
         {history.length > 0 && (
           <div className="grid md:grid-cols-2 gap-6">
             {/* Success Rate Chart */}
-            <Card className="animate-fade-in" style={{ animationDelay: '200ms' }}>
+            <Card className="animate-fade-in" style={{ animationDelay: "200ms" }}>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  📈 Taxa de Sucesso ao Longo do Tempo
-                </CardTitle>
+                <CardTitle className="flex items-center gap-2">📈 Taxa de Sucesso ao Longo do Tempo</CardTitle>
               </CardHeader>
               <CardContent>
                 {movingAvg.length > 0 ? (
@@ -89,23 +98,15 @@ const Home = () => {
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={movingAvg}>
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis 
-                          dataKey="date" 
-                          stroke="hsl(var(--muted-foreground))"
-                          fontSize={12}
-                        />
-                        <YAxis 
-                          stroke="hsl(var(--muted-foreground))"
-                          fontSize={12}
-                          domain={[0, 100]}
-                        />
+                        <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} domain={[0, 100]} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Line
                           type="monotone"
                           dataKey="taxa"
                           stroke="hsl(var(--primary))"
                           strokeWidth={2}
-                          dot={{ fill: 'hsl(var(--primary))' }}
+                          dot={{ fill: "hsl(var(--primary))" }}
                         />
                       </LineChart>
                     </ResponsiveContainer>
@@ -119,11 +120,9 @@ const Home = () => {
             </Card>
 
             {/* Status Distribution Chart */}
-            <Card className="animate-fade-in" style={{ animationDelay: '300ms' }}>
+            <Card className="animate-fade-in" style={{ animationDelay: "300ms" }}>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  🎯 Distribuição por Status
-                </CardTitle>
+                <CardTitle className="flex items-center gap-2">🎯 Distribuição por Status</CardTitle>
               </CardHeader>
               <CardContent>
                 {statusData.length > 0 ? (
