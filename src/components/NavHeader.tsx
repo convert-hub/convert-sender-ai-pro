@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Settings, History } from "lucide-react";
+import { Settings, History, Grid3x3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useDispatch } from "@/contexts/DispatchContext";
 import { Stepper } from "./Stepper";
@@ -9,7 +9,7 @@ import logo from "@/assets/logo.png";
 export const NavHeader = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { webhookUrl } = useDispatch();
+  const { webhookUrl, batches } = useDispatch();
 
   const isCustomWebhook = webhookUrl !== "https://eosptnbunq4hk5z.m.pipedream.net";
 
@@ -31,6 +31,24 @@ export const NavHeader = () => {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/batches")}
+            className="relative"
+          >
+            <Grid3x3 className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Blocos</span>
+            {batches.filter(b => b.status === 'ready').length > 0 && (
+              <Badge 
+                variant="destructive" 
+                className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+              >
+                {batches.filter(b => b.status === 'ready').length}
+              </Badge>
+            )}
+          </Button>
+
           <Button
             variant="ghost"
             size="sm"

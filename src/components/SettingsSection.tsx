@@ -16,7 +16,7 @@ const DEFAULT_WEBHOOK_URL = 'https://n8n.converthub.com.br/webhook/disparos-prec
 
 export const SettingsSection = () => {
   const navigate = useNavigate();
-  const { webhookUrl, setWebhookUrl } = useDispatch();
+  const { webhookUrl, setWebhookUrl, batches, reset } = useDispatch();
   
   const [inputUrl, setInputUrl] = useState(webhookUrl || DEFAULT_WEBHOOK_URL);
   const [isTesting, setIsTesting] = useState(false);
@@ -238,6 +238,62 @@ export const SettingsSection = () => {
                 </code>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Manage Batches Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Gerenciar Blocos</CardTitle>
+            <CardDescription>
+              Gerencie os blocos de envio salvos no sistema
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {batches.length > 0 ? (
+              <>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Total de blocos:</span>
+                    <Badge variant="secondary">{batches.length}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Blocos pendentes:</span>
+                    <Badge variant="outline">{batches.filter(b => b.status === 'ready').length}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Total de contatos:</span>
+                    <Badge variant="secondary">
+                      {batches.reduce((sum, b) => sum + b.contacts.length, 0)}
+                    </Badge>
+                  </div>
+                </div>
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Limpar os blocos irá remover todos os dados salvos e você precisará importar uma nova planilha.
+                  </AlertDescription>
+                </Alert>
+                <Button 
+                  variant="destructive" 
+                  onClick={() => {
+                    if (confirm('Tem certeza que deseja limpar todos os blocos? Esta ação não pode ser desfeita.')) {
+                      reset();
+                      toast({
+                        title: 'Blocos limpos com sucesso',
+                        description: 'Todos os blocos foram removidos do sistema',
+                      });
+                    }
+                  }}
+                >
+                  Limpar Todos os Blocos
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Nenhum bloco salvo no momento.
+              </p>
+            )}
           </CardContent>
         </Card>
 
