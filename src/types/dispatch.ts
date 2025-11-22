@@ -25,7 +25,9 @@ export interface BatchInfo {
     end: number;
   };
   contacts: Contact[];
-  status: 'ready' | 'sending' | 'sent' | 'error';
+  status: 'ready' | 'sending' | 'sent' | 'error' | 'scheduled';
+  scheduled_at?: string;
+  created_at: string;
 }
 
 export interface DispatchHistory {

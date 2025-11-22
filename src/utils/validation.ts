@@ -144,6 +144,7 @@ export const createBatches = (
       },
       contacts: batchContacts,
       status: 'ready' as const,
+      created_at: new Date().toISOString(),
     });
   }
   
