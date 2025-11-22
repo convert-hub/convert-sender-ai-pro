@@ -42,13 +42,32 @@ const STORAGE_KEYS = {
   webhookUrl: 'dispatch_webhook_url',
   stats: 'dispatch_stats',
   history: 'dispatch_history',
+  batches: 'dispatch_batches',
+  parsedData: 'dispatch_parsed_data',
+  sheetMeta: 'dispatch_sheet_meta',
+  columnMapping: 'dispatch_column_mapping',
 };
 
 export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [parsedData, setParsedData] = useState<ParsedData | null>(null);
-  const [sheetMeta, setSheetMeta] = useState<SheetMeta | null>(null);
-  const [columnMapping, setColumnMapping] = useState<ColumnMapping | null>(null);
-  const [batches, setBatches] = useState<BatchInfo[]>([]);
+  const [parsedData, setParsedData] = useState<ParsedData | null>(() => {
+    const stored = localStorage.getItem(STORAGE_KEYS.parsedData);
+    return stored ? JSON.parse(stored) : null;
+  });
+  
+  const [sheetMeta, setSheetMeta] = useState<SheetMeta | null>(() => {
+    const stored = localStorage.getItem(STORAGE_KEYS.sheetMeta);
+    return stored ? JSON.parse(stored) : null;
+  });
+  
+  const [columnMapping, setColumnMapping] = useState<ColumnMapping | null>(() => {
+    const stored = localStorage.getItem(STORAGE_KEYS.columnMapping);
+    return stored ? JSON.parse(stored) : null;
+  });
+  
+  const [batches, setBatches] = useState<BatchInfo[]>(() => {
+    const stored = localStorage.getItem(STORAGE_KEYS.batches);
+    return stored ? JSON.parse(stored) : [];
+  });
   
   const [history, setHistory] = useState<DispatchHistory[]>(() => {
     const stored = localStorage.getItem(STORAGE_KEYS.history);
@@ -82,6 +101,38 @@ export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(history));
   }, [history]);
 
+  // Persist batches to localStorage
+  React.useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.batches, JSON.stringify(batches));
+  }, [batches]);
+
+  // Persist parsedData to localStorage
+  React.useEffect(() => {
+    if (parsedData) {
+      localStorage.setItem(STORAGE_KEYS.parsedData, JSON.stringify(parsedData));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.parsedData);
+    }
+  }, [parsedData]);
+
+  // Persist sheetMeta to localStorage
+  React.useEffect(() => {
+    if (sheetMeta) {
+      localStorage.setItem(STORAGE_KEYS.sheetMeta, JSON.stringify(sheetMeta));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.sheetMeta);
+    }
+  }, [sheetMeta]);
+
+  // Persist columnMapping to localStorage
+  React.useEffect(() => {
+    if (columnMapping) {
+      localStorage.setItem(STORAGE_KEYS.columnMapping, JSON.stringify(columnMapping));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.columnMapping);
+    }
+  }, [columnMapping]);
+
   const setWebhookUrl = (url: string) => {
     setWebhookUrlState(url);
     localStorage.setItem(STORAGE_KEYS.webhookUrl, url);
@@ -114,6 +165,10 @@ export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSheetMeta(null);
     setColumnMapping(null);
     setBatches([]);
+    localStorage.removeItem(STORAGE_KEYS.batches);
+    localStorage.removeItem(STORAGE_KEYS.parsedData);
+    localStorage.removeItem(STORAGE_KEYS.sheetMeta);
+    localStorage.removeItem(STORAGE_KEYS.columnMapping);
   };
 
   return (

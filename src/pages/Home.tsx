@@ -20,9 +20,15 @@ import { useDispatch } from "@/contexts/DispatchContext";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import logo from "@/assets/logo.png";
+import { useNavigate } from "react-router-dom";
+import { Grid3x3, Send } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 
 const Home = () => {
-  const { history } = useDispatch();
+  const { history, batches, reset } = useDispatch();
+  const navigate = useNavigate();
 
   // Process history for success rate over time
   const successRateData = history
@@ -83,6 +89,51 @@ const Home = () => {
 
         {/* Quick Actions */}
         <QuickActions />
+
+        {/* Pending Batches Card */}
+        {batches.length > 0 && (
+          <Card className="border-primary/50 bg-primary/5 animate-fade-in" style={{ animationDelay: "150ms" }}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Grid3x3 className="h-5 w-5" />
+                Blocos Prontos para Envio
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">
+                    Você tem {batches.filter(b => b.status === 'ready').length} blocos prontos
+                  </span>
+                  <Badge variant="secondary">
+                    {batches.reduce((sum, b) => sum + b.contacts.length, 0)} contatos
+                  </Badge>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => navigate('/batches')} 
+                    className="flex-1"
+                  >
+                    <Send className="mr-2 h-4 w-4" />
+                    Ir para Blocos
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      if (confirm('Tem certeza que deseja descartar todos os blocos?')) {
+                        reset();
+                        toast({ title: 'Blocos descartados' });
+                      }
+                    }}
+                  >
+                    Descartar
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Charts Grid */}
         {history.length > 0 && (

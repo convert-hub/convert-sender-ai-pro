@@ -27,9 +27,44 @@ export const BatchesSection = () => {
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
 
-  if (!batches.length || !columnMapping || !sheetMeta) {
-    navigate('/');
-    return null;
+  if (!batches.length) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>Nenhum bloco disponível</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">
+              Você ainda não criou blocos de envio. Importe uma planilha primeiro para começar.
+            </p>
+            <Button onClick={() => navigate('/')}>
+              Ir para Home
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!columnMapping || !sheetMeta) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>Dados incompletos</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">
+              Alguns dados necessários estão faltando. Por favor, importe uma nova planilha.
+            </p>
+            <Button onClick={() => navigate('/')}>
+              Ir para Home
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const handleViewBatch = (batch: BatchInfo) => {
@@ -170,6 +205,24 @@ export const BatchesSection = () => {
             Ver Histórico
           </Button>
         </div>
+      </div>
+
+      {/* Status Summary */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <Badge variant="secondary" className="text-sm py-1.5">
+          Total: {batches.length}
+        </Badge>
+        <Badge className="bg-success text-sm py-1.5">
+          Enviados: {batches.filter(b => b.status === 'sent').length}
+        </Badge>
+        <Badge variant="outline" className="text-sm py-1.5">
+          Pendentes: {batches.filter(b => b.status === 'ready').length}
+        </Badge>
+        {batches.filter(b => b.status === 'error').length > 0 && (
+          <Badge variant="destructive" className="text-sm py-1.5">
+            Erros: {batches.filter(b => b.status === 'error').length}
+          </Badge>
+        )}
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
