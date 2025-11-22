@@ -223,6 +223,10 @@ export const BatchesSection = () => {
               {batches.length} blocos • {batches.reduce((sum, b) => sum + b.contacts.length, 0)} contatos totais
             </p>
           </div>
+          <Button variant="outline" onClick={() => navigate('/')}>
+            <Home className="mr-2 h-4 w-4" />
+            Voltar para Home
+          </Button>
         </div>
 
         {/* Status Summary */}
