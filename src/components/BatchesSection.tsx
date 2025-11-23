@@ -157,14 +157,11 @@ export const BatchesSection = () => {
     setSelectedBatchNumber(null);
   };
 
-  const handleCancelSchedule = (batchNumber: number) => {
-    setBatches(
-      batches.map(b => 
-        b.block_number === batchNumber 
-          ? { ...b, status: 'ready', scheduled_at: undefined }
-          : b
-      )
-    );
+  const handleCancelSchedule = async (batchNumber: number) => {
+    await updateBatch(batchNumber, {
+      status: 'ready',
+      scheduled_at: null,
+    });
 
     toast({
       title: 'Agendamento cancelado',
