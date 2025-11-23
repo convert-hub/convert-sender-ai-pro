@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user, loading } = useAuth();
+  const { user, loading, accountStatus, isAdmin } = useAuth();
 
   if (loading) {
     return (
@@ -19,6 +19,17 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Admins bypass account status checks
+  if (!isAdmin) {
+    if (accountStatus === 'pending') {
+      return <Navigate to="/pending-approval" replace />;
+    }
+
+    if (accountStatus === 'rejected' || accountStatus === 'suspended') {
+      return <Navigate to="/account-blocked" replace />;
+    }
   }
 
   return <>{children}</>;
