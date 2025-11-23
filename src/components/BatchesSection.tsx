@@ -26,7 +26,7 @@ import { ptBR } from 'date-fns/locale';
 import { BatchInfo } from '@/types/dispatch';
 
 export const BatchesSection = () => {
-  const { batches, setBatches, columnMapping, sheetMeta, webhookUrl, addToHistory, incrementStats } = useDispatch();
+  const { batches, setBatches, columnMapping, sheetMeta, webhookUrl, addToHistory, incrementStats, campaigns } = useDispatch();
   const navigate = useNavigate();
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [selectedBatchNumber, setSelectedBatchNumber] = useState<number | null>(null);
@@ -77,6 +77,16 @@ export const BatchesSection = () => {
   }
 
   const handleSendBatch = async (batch: BatchInfo) => {
+    const campaign = campaigns.find(c => c.id === batch.campaign_id);
+    if (!campaign) {
+      toast({
+        title: 'Erro',
+        description: 'Campanha não encontrada',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // Update batch status to sending
     setBatches(
       batches.map(b =>
@@ -86,7 +96,7 @@ export const BatchesSection = () => {
       )
     );
 
-    const result = await sendToWebhook(batch, columnMapping, sheetMeta, webhookUrl);
+    const result = await sendToWebhook(batch, columnMapping, sheetMeta, campaign, webhookUrl);
 
     if (result.success) {
       // Update batch status to sent

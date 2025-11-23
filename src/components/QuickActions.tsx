@@ -14,7 +14,7 @@ export const QuickActions = () => {
   const [sheetUrl, setSheetUrl] = useState('');
   const [showUrlInput, setShowUrlInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { setParsedData, setSheetMeta, incrementStats } = useDispatch();
+  const { setParsedData, setSheetMeta, incrementStats, currentCampaignId } = useDispatch();
   const navigate = useNavigate();
 
   const handleFileUpload = async (file: File) => {
@@ -36,6 +36,7 @@ export const QuickActions = () => {
         origin: 'upload',
         filename_or_url: file.name,
         total_rows: data.rows.length,
+        campaign_id: currentCampaignId || '',
       });
       
       incrementStats({
@@ -79,6 +80,7 @@ export const QuickActions = () => {
         origin: 'url',
         filename_or_url: sheetUrl,
         total_rows: data.rows.length,
+        campaign_id: currentCampaignId || '',
       });
       
       incrementStats({
@@ -112,6 +114,7 @@ export const QuickActions = () => {
       origin: 'upload',
       filename_or_url: 'exemplo-120-contatos.csv',
       total_rows: data.rows.length,
+      campaign_id: currentCampaignId || '',
     });
     
     incrementStats({

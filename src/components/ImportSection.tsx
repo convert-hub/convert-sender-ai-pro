@@ -8,11 +8,12 @@ import { parseCSV, parseXLSX, parseGoogleSheetsURL } from "@/utils/parsers";
 import { generateExampleData } from "@/utils/exampleData";
 import { useDispatch } from "@/contexts/DispatchContext";
 import { useNavigate } from "react-router-dom";
+import { CampaignSelector } from "@/components/CampaignSelector";
 
 export const ImportSection = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [sheetUrl, setSheetUrl] = useState("");
-  const { setParsedData, setSheetMeta, incrementStats } = useDispatch();
+  const { setParsedData, setSheetMeta, incrementStats, currentCampaignId } = useDispatch();
   const navigate = useNavigate();
 
   const handleFileUpload = async (file: File) => {
@@ -34,6 +35,7 @@ export const ImportSection = () => {
         origin: "upload",
         filename_or_url: file.name,
         total_rows: data.rows.length,
+        campaign_id: currentCampaignId || '',
       });
 
       incrementStats({
@@ -77,6 +79,7 @@ export const ImportSection = () => {
         origin: "url",
         filename_or_url: sheetUrl,
         total_rows: data.rows.length,
+        campaign_id: currentCampaignId || '',
       });
 
       incrementStats({
@@ -108,6 +111,7 @@ export const ImportSection = () => {
       origin: "upload",
       filename_or_url: "exemplo-120-contatos.csv",
       total_rows: data.rows.length,
+      campaign_id: currentCampaignId || '',
     });
 
     incrementStats({
@@ -135,6 +139,8 @@ export const ImportSection = () => {
         <h1 className="text-4xl font-bold mb-4">Disparos em Lote</h1>
         <p className="text-lg text-muted-foreground">Importe sua base de contatos e envie disparos segmentados</p>
       </div>
+
+      <CampaignSelector />
 
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         <Card>

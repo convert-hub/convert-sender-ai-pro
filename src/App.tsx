@@ -7,6 +7,7 @@ import Home from "./pages/Home";
 import Import from "./pages/Import";
 import Map from "./pages/Map";
 import Batches from "./pages/Batches";
+import Campaigns from "./pages/Campaigns";
 import History from "./pages/History";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/import" element={<Import />} />
           <Route path="/map" element={<Map />} />
           <Route path="/batches" element={<Batches />} />
+          <Route path="/campaigns" element={<Campaigns />} />
           <Route path="/history" element={<History />} />
           <Route path="/settings" element={<Settings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

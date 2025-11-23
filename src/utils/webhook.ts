@@ -1,4 +1,4 @@
-import { WebhookPayload, BatchInfo, ColumnMapping, SheetMeta } from '@/types/dispatch';
+import { WebhookPayload, BatchInfo, ColumnMapping, SheetMeta, Campaign } from '@/types/dispatch';
 
 export { testWebhook } from './webhookTest';
 
@@ -6,10 +6,17 @@ export const sendToWebhook = async (
   batch: BatchInfo,
   mapping: ColumnMapping,
   sheetMeta: SheetMeta,
+  campaign: Campaign,
   webhookUrl: string
 ): Promise<{ success: boolean; status?: number; error?: string }> => {
   const payload: WebhookPayload = {
     source: 'lovable-disparos',
+    campaign: {
+      id: campaign.id,
+      name: campaign.name,
+      objective: campaign.objective,
+      ai_instructions: campaign.ai_instructions,
+    },
     sheet_meta: sheetMeta,
     mapping: {
       name: mapping.name,

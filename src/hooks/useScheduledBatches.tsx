@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import { BatchInfo } from '@/types/dispatch';
 
 export const useScheduledBatches = () => {
-  const { batches, setBatches, addToHistory, webhookUrl, sheetMeta, columnMapping, incrementStats } = useDispatch();
+  const { batches, setBatches, addToHistory, webhookUrl, sheetMeta, columnMapping, incrementStats, campaigns } = useDispatch();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -32,11 +32,17 @@ export const useScheduledBatches = () => {
             if (!sheetMeta || !columnMapping) {
               throw new Error('Dados de planilha não encontrados');
             }
+            
+            const campaign = campaigns.find(c => c.id === batch.campaign_id);
+            if (!campaign) {
+              throw new Error('Campanha não encontrada');
+            }
 
             const response = await sendToWebhook(
               batch,
               columnMapping,
               sheetMeta,
+              campaign,
               webhookUrl
             );
 
@@ -107,5 +113,5 @@ export const useScheduledBatches = () => {
         clearInterval(intervalRef.current);
       }
     };
-  }, [batches, setBatches, addToHistory, webhookUrl, sheetMeta, columnMapping, incrementStats]);
+  }, [batches, setBatches, addToHistory, webhookUrl, sheetMeta, columnMapping, incrementStats, campaigns]);
 };
