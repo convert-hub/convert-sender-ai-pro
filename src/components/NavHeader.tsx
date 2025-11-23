@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Settings, History, Grid3x3 } from "lucide-react";
+import { Settings, History, Grid3x3, Target } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useDispatch } from "@/contexts/DispatchContext";
 import { Stepper } from "./Stepper";
@@ -9,9 +9,10 @@ import logo from "@/assets/logo.png";
 export const NavHeader = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { webhookUrl, batches } = useDispatch();
+  const { webhookUrl, batches, campaigns } = useDispatch();
 
   const isCustomWebhook = webhookUrl !== "https://eosptnbunq4hk5z.m.pipedream.net";
+  const activeCampaignsCount = campaigns.filter(c => c.status === 'active').length;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -31,6 +32,24 @@ export const NavHeader = () => {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/campaigns")}
+            className="relative"
+          >
+            <Target className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Campanhas</span>
+            {activeCampaignsCount > 0 && (
+              <Badge 
+                variant="secondary" 
+                className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+              >
+                {activeCampaignsCount}
+              </Badge>
+            )}
+          </Button>
+
           <Button
             variant="ghost"
             size="sm"

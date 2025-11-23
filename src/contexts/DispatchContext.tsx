@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { ParsedData, ColumnMapping, BatchInfo, DispatchHistory, SheetMeta } from '@/types/dispatch';
+import { ParsedData, ColumnMapping, BatchInfo, DispatchHistory, SheetMeta, Campaign, CampaignTemplate, AIInstructions } from '@/types/dispatch';
 
 interface DispatchContextType {
   parsedData: ParsedData | null;
@@ -21,6 +21,21 @@ interface DispatchContextType {
   webhookUrl: string;
   setWebhookUrl: (url: string) => void;
   
+  campaigns: Campaign[];
+  setCampaigns: (campaigns: Campaign[]) => void;
+  addCampaign: (campaign: Campaign) => void;
+  updateCampaign: (id: string, updates: Partial<Campaign>) => void;
+  deleteCampaign: (id: string) => void;
+  
+  currentCampaignId: string | null;
+  setCurrentCampaignId: (id: string | null) => void;
+  
+  templates: CampaignTemplate[];
+  setTemplates: (templates: CampaignTemplate[]) => void;
+  addTemplate: (template: CampaignTemplate) => void;
+  updateTemplate: (id: string, updates: Partial<CampaignTemplate>) => void;
+  deleteTemplate: (id: string) => void;
+  
   stats: {
     uploads_total: number;
     rows_total: number;
@@ -38,6 +53,52 @@ interface DispatchContextType {
 const DispatchContext = createContext<DispatchContextType | undefined>(undefined);
 
 const DEFAULT_WEBHOOK_URL = 'https://n8n.converthub.com.br/webhook/disparos-precatorizei';
+
+const DEFAULT_TEMPLATES: CampaignTemplate[] = [
+  {
+    id: 'template_captacao',
+    name: 'Captação de Clientes',
+    description: 'Template para primeiros contatos de captação',
+    is_custom: false,
+    created_at: new Date().toISOString(),
+    ai_instructions: {
+      identidade: 'Representante comercial da empresa',
+      objetivo: 'Apresentar serviços e identificar interesse',
+      tom_estilo: 'Profissional e consultivo',
+      cta: 'Agendar uma conversa',
+      restricoes: 'Não fazer promessas de resultados, não ser invasivo'
+    }
+  },
+  {
+    id: 'template_relacionamento',
+    name: 'Relacionamento com Clientes',
+    description: 'Template para clientes já existentes',
+    is_custom: false,
+    created_at: new Date().toISOString(),
+    ai_instructions: {
+      identidade: 'Gerente de relacionamento',
+      objetivo: 'Manter contato e identificar novas oportunidades',
+      tom_estilo: 'Amigável e próximo',
+      cta: 'Conversar sobre como podemos ajudar',
+      restricoes: 'Não ser repetitivo, não forçar venda'
+    }
+  },
+  {
+    id: 'template_reativacao',
+    name: 'Reativação de Leads',
+    description: 'Template para reativar contatos inativos',
+    is_custom: false,
+    created_at: new Date().toISOString(),
+    ai_instructions: {
+      identidade: 'Consultor da empresa',
+      objetivo: 'Reengajar leads que não responderam anteriormente',
+      tom_estilo: 'Educado e interessado',
+      cta: 'Descobrir se ainda há interesse',
+      restricoes: 'Não ser insistente, respeitar desinteresse'
+    }
+  }
+];
+
 const STORAGE_KEYS = {
   webhookUrl: 'dispatch_webhook_url',
   stats: 'dispatch_stats',
@@ -46,6 +107,9 @@ const STORAGE_KEYS = {
   parsedData: 'dispatch_parsed_data',
   sheetMeta: 'dispatch_sheet_meta',
   columnMapping: 'dispatch_column_mapping',
+  campaigns: 'dispatch_campaigns',
+  currentCampaignId: 'dispatch_current_campaign_id',
+  templates: 'dispatch_campaign_templates',
 };
 
 export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -77,6 +141,21 @@ export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [webhookUrl, setWebhookUrlState] = useState<string>(() => {
     const stored = localStorage.getItem(STORAGE_KEYS.webhookUrl);
     return stored || DEFAULT_WEBHOOK_URL;
+  });
+  
+  const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
+    const stored = localStorage.getItem(STORAGE_KEYS.campaigns);
+    return stored ? JSON.parse(stored) : [];
+  });
+  
+  const [currentCampaignId, setCurrentCampaignId] = useState<string | null>(() => {
+    const stored = localStorage.getItem(STORAGE_KEYS.currentCampaignId);
+    return stored || null;
+  });
+  
+  const [templates, setTemplates] = useState<CampaignTemplate[]>(() => {
+    const stored = localStorage.getItem(STORAGE_KEYS.templates);
+    return stored ? JSON.parse(stored) : DEFAULT_TEMPLATES;
   });
   
   const [stats, setStats] = useState(() => {
@@ -132,6 +211,25 @@ export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       localStorage.removeItem(STORAGE_KEYS.columnMapping);
     }
   }, [columnMapping]);
+  
+  // Persist campaigns to localStorage
+  React.useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.campaigns, JSON.stringify(campaigns));
+  }, [campaigns]);
+  
+  // Persist currentCampaignId to localStorage
+  React.useEffect(() => {
+    if (currentCampaignId) {
+      localStorage.setItem(STORAGE_KEYS.currentCampaignId, currentCampaignId);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.currentCampaignId);
+    }
+  }, [currentCampaignId]);
+  
+  // Persist templates to localStorage
+  React.useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.templates, JSON.stringify(templates));
+  }, [templates]);
 
   const setWebhookUrl = (url: string) => {
     setWebhookUrlState(url);
@@ -145,6 +243,33 @@ export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const clearHistory = () => {
     setHistory([]);
     localStorage.removeItem(STORAGE_KEYS.history);
+  };
+  
+  const addCampaign = (campaign: Campaign) => {
+    setCampaigns(prev => [...prev, campaign]);
+  };
+  
+  const updateCampaign = (id: string, updates: Partial<Campaign>) => {
+    setCampaigns(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
+  
+  const deleteCampaign = (id: string) => {
+    setCampaigns(prev => prev.filter(c => c.id !== id));
+    if (currentCampaignId === id) {
+      setCurrentCampaignId(null);
+    }
+  };
+  
+  const addTemplate = (template: CampaignTemplate) => {
+    setTemplates(prev => [...prev, template]);
+  };
+  
+  const updateTemplate = (id: string, updates: Partial<CampaignTemplate>) => {
+    setTemplates(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+  };
+  
+  const deleteTemplate = (id: string) => {
+    setTemplates(prev => prev.filter(t => t.id !== id));
   };
 
   const updateStats = (updates: Partial<typeof stats>) => {
@@ -187,6 +312,18 @@ export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         clearHistory,
         webhookUrl,
         setWebhookUrl,
+        campaigns,
+        setCampaigns,
+        addCampaign,
+        updateCampaign,
+        deleteCampaign,
+        currentCampaignId,
+        setCurrentCampaignId,
+        templates,
+        setTemplates,
+        addTemplate,
+        updateTemplate,
+        deleteTemplate,
         stats,
         updateStats,
         incrementStats,
