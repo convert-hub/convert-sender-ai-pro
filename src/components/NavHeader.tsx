@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Settings, History, Grid3x3, Target } from "lucide-react";
+import { Settings, History, Grid3x3, Target, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useDispatch } from "@/contexts/DispatchContext";
 import { Stepper } from "./Stepper";
@@ -32,6 +32,15 @@ export const NavHeader = () => {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/import")}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Importar</span>
+          </Button>
+
           <Button
             variant="ghost"
             size="sm"
