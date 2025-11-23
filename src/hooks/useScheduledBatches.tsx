@@ -10,7 +10,7 @@ import { toast } from '@/hooks/use-toast';
 export const useScheduledBatches = () => {
   const { batches, updateBatch } = useBatches();
   const { addHistoryItem } = useHistory();
-  const { settings, incrementStats } = useUserSettings();
+  const { settings, incrementStats, checkDailyLimit } = useUserSettings();
   const { campaigns } = useCampaigns();
   const { sheetMeta, columnMapping } = useDispatch();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -30,6 +30,13 @@ export const useScheduledBatches = () => {
           await updateBatch(batch.block_number, { status: 'sending' });
 
           try {
+            // Check daily limit before sending
+            const limitCheck = await checkDailyLimit(batch.contacts.length);
+            
+            if (!limitCheck.allowed) {
+              throw new Error(`Limite diário excedido (${limitCheck.used_today}/${limitCheck.limit})`);
+            }
+
             if (!sheetMeta || !columnMapping) {
               throw new Error('Dados de planilha não encontrados');
             }
@@ -91,5 +98,5 @@ export const useScheduledBatches = () => {
         clearInterval(intervalRef.current);
       }
     };
-  }, [batches, updateBatch, addHistoryItem, settings, sheetMeta, columnMapping, incrementStats, campaigns]);
+  }, [batches, updateBatch, addHistoryItem, settings, sheetMeta, columnMapping, incrementStats, campaigns, checkDailyLimit]);
 };

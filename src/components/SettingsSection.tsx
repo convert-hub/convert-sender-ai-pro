@@ -14,6 +14,7 @@ import { useBatches } from '@/hooks/useBatches';
 import { useAuth } from '@/contexts/AuthContext';
 import { validateWebhookUrl } from '@/utils/validation';
 import { testWebhook } from '@/utils/webhook';
+import { DailyLimitIndicator } from '@/components/DailyLimitIndicator';
 
 const DEFAULT_WEBHOOK_URL = 'https://n8n.converthub.com.br/webhook/disparos-precatorizei';
 
@@ -131,6 +132,9 @@ export const SettingsSection = () => {
             </div>
           </div>
         </div>
+
+        {/* Daily Limit Indicator */}
+        <DailyLimitIndicator />
 
         {/* Webhook Configuration Card */}
         <Card>

@@ -4,13 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { CampaignTemplate, AIInstructions } from '@/types/dispatch';
-import { useDispatch } from '@/contexts/DispatchContext';
+import { AIInstructions } from '@/types/dispatch';
+import { useCampaignTemplates, CampaignTemplate } from '@/hooks/useCampaignTemplates';
+import { useAuth } from '@/contexts/AuthContext';
 import { validateAIInstructions } from '@/utils/campaignValidation';
 import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Copy, Edit, Plus, Trash2, Save, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +33,8 @@ interface TemplateManagerProps {
 }
 
 export const TemplateManager = ({ open, onClose }: TemplateManagerProps) => {
-  const { templates, addTemplate, updateTemplate, deleteTemplate } = useDispatch();
+  const { templates, addTemplate, updateTemplate, deleteTemplate, canManageTemplates } = useCampaignTemplates();
+  const { isAdmin } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<CampaignTemplate | null>(null);
   
@@ -47,6 +51,15 @@ export const TemplateManager = ({ open, onClose }: TemplateManagerProps) => {
   });
 
   const handleStartEdit = (template?: CampaignTemplate) => {
+    if (!canManageTemplates) {
+      toast({
+        title: 'Acesso negado',
+        description: 'Apenas administradores podem gerenciar templates',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (template) {
       setEditingTemplate(template);
       setFormData(template);
@@ -93,7 +106,7 @@ export const TemplateManager = ({ open, onClose }: TemplateManagerProps) => {
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name?.trim()) {
       toast({
         title: 'Nome obrigatório',
@@ -124,22 +137,19 @@ export const TemplateManager = ({ open, onClose }: TemplateManagerProps) => {
     }
 
     if (editingTemplate) {
-      updateTemplate(editingTemplate.id, formData);
+      await updateTemplate(editingTemplate.id, formData);
       toast({
         title: 'Template atualizado',
         description: 'As alterações foram salvas com sucesso',
       });
     } else {
-      const newTemplate: CampaignTemplate = {
-        id: `template_custom_${Date.now()}`,
+      await addTemplate({
         name: formData.name!,
-        description: formData.description!,
+        description: formData.description,
         ai_instructions: formData.ai_instructions!,
         is_custom: true,
-        created_at: new Date().toISOString(),
-      };
-      
-      addTemplate(newTemplate);
+        is_global: false,
+      });
       toast({
         title: 'Template criado',
         description: 'O novo template foi criado com sucesso',
@@ -178,6 +188,15 @@ export const TemplateManager = ({ open, onClose }: TemplateManagerProps) => {
         </SheetHeader>
 
         <ScrollArea className="h-[calc(100vh-120px)] mt-6">
+          {!canManageTemplates && !isEditing && (
+            <Alert className="mb-4 mr-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Apenas administradores podem criar, editar ou deletar templates. Você pode visualizar e duplicar templates existentes.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {isEditing ? (
             <div className="space-y-4 pr-4">
               <div className="space-y-2">
@@ -273,10 +292,12 @@ export const TemplateManager = ({ open, onClose }: TemplateManagerProps) => {
             </div>
           ) : (
             <div className="space-y-4 pr-4">
-              <Button onClick={() => handleStartEdit()} className="w-full">
-                <Plus className="mr-2 h-4 w-4" />
-                Novo Template
-              </Button>
+              {canManageTemplates && (
+                <Button onClick={() => handleStartEdit()} className="w-full">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Novo Template
+                </Button>
+              )}
 
               {templates.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
@@ -294,8 +315,8 @@ export const TemplateManager = ({ open, onClose }: TemplateManagerProps) => {
                               {template.description}
                             </CardDescription>
                           </div>
-                          <Badge variant={template.is_custom ? 'default' : 'secondary'}>
-                            {template.is_custom ? 'Personalizado' : 'Padrão'}
+                          <Badge variant={template.is_global ? 'secondary' : template.is_custom ? 'default' : 'outline'}>
+                            {template.is_global ? 'Global' : template.is_custom ? 'Personalizado' : 'Padrão'}
                           </Badge>
                         </div>
                       </CardHeader>
@@ -320,7 +341,7 @@ export const TemplateManager = ({ open, onClose }: TemplateManagerProps) => {
                           Duplicar
                         </Button>
                         
-                        {template.is_custom && (
+                        {canManageTemplates && template.is_custom && !template.is_global && (
                           <>
                             <Button
                               variant="outline"

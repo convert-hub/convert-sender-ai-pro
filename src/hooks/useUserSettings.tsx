@@ -10,11 +10,22 @@ interface UserStats {
   rows_invalid: number;
   batches_total: number;
   batches_sent: number;
+  daily_dispatch_limit?: number;
+  dispatches_today?: number;
+  last_dispatch_date?: string;
 }
 
 interface UserSettings {
   webhook_url: string;
   stats: UserStats;
+}
+
+interface DailyLimitCheck {
+  allowed: boolean;
+  remaining: number;
+  limit: number;
+  used_today: number;
+  error?: string;
 }
 
 export const useUserSettings = () => {
@@ -172,9 +183,12 @@ export const useUserSettings = () => {
     if (!user) return;
 
     try {
+      const currentValue = settings.stats[field];
+      const numericValue = typeof currentValue === 'number' ? currentValue : 0;
+      
       const updatedStats = {
         ...settings.stats,
-        [field]: settings.stats[field] + amount,
+        [field]: numericValue + amount,
       };
 
       const { error } = await supabase
@@ -189,11 +203,46 @@ export const useUserSettings = () => {
     }
   };
 
+  const checkDailyLimit = async (contactsToSend: number): Promise<DailyLimitCheck> => {
+    if (!user) {
+      return {
+        allowed: false,
+        remaining: 0,
+        limit: 0,
+        used_today: 0,
+        error: 'User not authenticated',
+      };
+    }
+
+    try {
+      const { data, error } = await supabase
+        .rpc('check_and_update_daily_limit', {
+          _user_id: user.id,
+          _contacts_to_send: contactsToSend,
+        });
+
+      if (error) throw error;
+
+      return data as unknown as DailyLimitCheck;
+    } catch (error) {
+      console.error('Error checking daily limit:', error);
+      toast.error('Erro ao verificar limite diário');
+      return {
+        allowed: false,
+        remaining: 0,
+        limit: 50,
+        used_today: 0,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  };
+
   return {
     settings,
     loading,
     updateWebhookUrl,
     updateStats,
     incrementStats,
+    checkDailyLimit,
   };
 };
