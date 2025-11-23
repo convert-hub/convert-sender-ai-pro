@@ -3,12 +3,15 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/hooks/useUserRole';
 
+type AccountStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   role: UserRole;
   isAdmin: boolean;
+  accountStatus: AccountStatus | null;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -22,6 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<UserRole>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [accountStatus, setAccountStatus] = useState<AccountStatus | null>(null);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -43,39 +47,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch user role when user changes
+  // Fetch user role and account status when user changes
   useEffect(() => {
     if (!user) {
       setRole(null);
       setIsAdmin(false);
+      setAccountStatus(null);
       return;
     }
 
-    const fetchRole = async () => {
+    const fetchUserData = async () => {
       try {
-        const { data, error } = await supabase
+        // Fetch profile with account status
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('account_status')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) throw profileError;
+        
+        setAccountStatus(profile?.account_status || 'pending');
+
+        // Fetch user role
+        const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
           .eq('role', 'admin')
           .maybeSingle();
 
-        if (error) throw error;
+        if (roleError) throw roleError;
 
-        const userRole = data?.role as UserRole;
+        const userRole = roleData?.role as UserRole;
         setRole(userRole || 'user');
-        setIsAdmin(!!data);
+        setIsAdmin(!!roleData);
       } catch (error) {
-        console.error('Error fetching user role:', error);
+        console.error('Error fetching user data:', error);
         setRole('user');
         setIsAdmin(false);
+        setAccountStatus('pending');
       }
     };
 
-    fetchRole();
+    fetchUserData();
 
-    // Real-time subscription for role changes
-    const subscription = supabase
+    // Real-time subscriptions for role and profile changes
+    const roleSubscription = supabase
       .channel('user_role_changes')
       .on(
         'postgres_changes',
@@ -86,13 +104,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           filter: `user_id=eq.${user.id}`,
         },
         () => {
-          fetchRole();
+          fetchUserData();
+        }
+      )
+      .subscribe();
+
+    const profileSubscription = supabase
+      .channel('user_profile_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        () => {
+          fetchUserData();
         }
       )
       .subscribe();
 
     return () => {
-      subscription.unsubscribe();
+      roleSubscription.unsubscribe();
+      profileSubscription.unsubscribe();
     };
   }, [user]);
 
@@ -132,6 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         role,
         isAdmin,
+        accountStatus,
         signIn,
         signUp,
         signOut,
