@@ -4,6 +4,7 @@ import { Settings, History, Grid3x3, Target, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useDispatch } from "@/contexts/DispatchContext";
 import { Stepper } from "./Stepper";
+import UserMenu from "./UserMenu";
 import logo from "@/assets/logo.png";
 
 export const NavHeader = () => {
@@ -104,6 +105,8 @@ export const NavHeader = () => {
               </Badge>
             )}
           </Button>
+
+          <UserMenu />
         </div>
       </div>
     </header>
