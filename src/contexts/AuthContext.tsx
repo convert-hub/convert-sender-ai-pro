@@ -57,15 +57,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
-          .order('role', { ascending: false })
-          .limit(1)
+          .eq('role', 'admin')
           .maybeSingle();
 
         if (error) throw error;
 
         const userRole = data?.role as UserRole;
-        setRole(userRole);
-        setIsAdmin(userRole === 'admin');
+        setRole(userRole || 'user');
+        setIsAdmin(!!data);
       } catch (error) {
         console.error('Error fetching user role:', error);
         setRole('user');
