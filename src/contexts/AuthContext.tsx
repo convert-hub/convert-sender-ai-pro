@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
-import { useUserRole, UserRole } from '@/hooks/useUserRole';
+import { UserRole } from '@/hooks/useUserRole';
 
 interface AuthContextType {
   user: User | null;
@@ -21,7 +20,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const { role, isAdmin, loading: roleLoading } = useUserRole();
+  const [role, setRole] = useState<UserRole>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -42,6 +42,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Fetch user role when user changes
+  useEffect(() => {
+    if (!user) {
+      setRole(null);
+      setIsAdmin(false);
+      return;
+    }
+
+    const fetchRole = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .order('role', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        const userRole = data?.role as UserRole;
+        setRole(userRole);
+        setIsAdmin(userRole === 'admin');
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+        setRole('user');
+        setIsAdmin(false);
+      }
+    };
+
+    fetchRole();
+
+    // Real-time subscription for role changes
+    const subscription = supabase
+      .channel('user_role_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_roles',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchRole();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -76,7 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         session,
-        loading: loading || roleLoading,
+        loading,
         role,
         isAdmin,
         signIn,
