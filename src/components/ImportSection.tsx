@@ -9,11 +9,13 @@ import { generateExampleData } from "@/utils/exampleData";
 import { useDispatch } from "@/contexts/DispatchContext";
 import { useNavigate } from "react-router-dom";
 import { CampaignSelector } from "@/components/CampaignSelector";
+import { useUserSettings } from "@/hooks/useUserSettings";
 
 export const ImportSection = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [sheetUrl, setSheetUrl] = useState("");
-  const { setParsedData, setSheetMeta, incrementStats, currentCampaignId } = useDispatch();
+  const { setParsedData, setSheetMeta, currentCampaignId } = useDispatch();
+  const { incrementStats } = useUserSettings();
   const navigate = useNavigate();
 
   const handleFileUpload = async (file: File) => {
@@ -47,10 +49,9 @@ export const ImportSection = () => {
         campaign_id: currentCampaignId || '',
       });
 
-      incrementStats({
-        uploads_total: 1,
-        rows_total: data.rows.length,
-      });
+      await incrementStats('uploads_total', 1);
+      await incrementStats('rows_total', data.rows.length);
+
 
       toast({
         title: "Arquivo carregado!",
@@ -100,10 +101,9 @@ export const ImportSection = () => {
         campaign_id: currentCampaignId || '',
       });
 
-      incrementStats({
-        uploads_total: 1,
-        rows_total: data.rows.length,
-      });
+      await incrementStats('uploads_total', 1);
+      await incrementStats('rows_total', data.rows.length);
+
 
       toast({
         title: "Planilha carregada!",
@@ -141,10 +141,9 @@ export const ImportSection = () => {
       campaign_id: currentCampaignId || '',
     });
 
-    incrementStats({
-      uploads_total: 1,
-      rows_total: data.rows.length,
-    });
+    incrementStats('uploads_total', 1);
+    incrementStats('rows_total', data.rows.length);
+
 
     toast({
       title: "Dados de exemplo carregados!",

@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import { useDispatch } from '@/contexts/DispatchContext';
+import { useBatches } from '@/hooks/useBatches';
+import { useHistory } from '@/hooks/useHistory';
+import { useUserSettings } from '@/hooks/useUserSettings';
+import { useCampaigns } from '@/hooks/useCampaigns';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -26,7 +30,11 @@ import { ptBR } from 'date-fns/locale';
 import { BatchInfo } from '@/types/dispatch';
 
 export const BatchesSection = () => {
-  const { batches, setBatches, columnMapping, sheetMeta, webhookUrl, addToHistory, incrementStats, campaigns } = useDispatch();
+  const { columnMapping, sheetMeta } = useDispatch();
+  const { batches, updateBatch } = useBatches();
+  const { addHistoryItem } = useHistory();
+  const { settings, incrementStats } = useUserSettings();
+  const { campaigns } = useCampaigns();
   const navigate = useNavigate();
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [selectedBatchNumber, setSelectedBatchNumber] = useState<number | null>(null);
@@ -89,55 +97,30 @@ export const BatchesSection = () => {
       return;
     }
 
-    // Update batch status to sending
-    setBatches(
-      batches.map(b =>
-        b.block_number === batch.block_number
-          ? { ...b, status: 'sending' }
-          : b
-      )
-    );
+    await updateBatch(batch.block_number, { status: 'sending' });
 
-    const result = await sendToWebhook(batch, columnMapping, sheetMeta, campaign, webhookUrl);
+    const result = await sendToWebhook(batch, columnMapping, sheetMeta, campaign, settings?.webhook_url || '');
 
     if (result.success) {
-      // Update batch status to sent
-      setBatches(
-        batches.map(b =>
-          b.block_number === batch.block_number
-            ? { ...b, status: 'sent' }
-            : b
-        )
-      );
+      await updateBatch(batch.block_number, { status: 'sent' });
 
-      addToHistory({
-        id: `${Date.now()}-${batch.block_number}`,
-        timestamp: new Date().toISOString(),
+      await addHistoryItem({
         block_number: batch.block_number,
         contacts_count: batch.contacts.length,
         status: 'success',
         response_status: result.status,
       });
 
-      incrementStats({ batches_sent: 1 });
+      await incrementStats('batches_sent', 1);
 
       toast({
         title: 'Disparo enviado!',
         description: `Bloco #${batch.block_number} enviado com sucesso`,
       });
     } else {
-      // Update batch status to error
-      setBatches(
-        batches.map(b =>
-          b.block_number === batch.block_number
-            ? { ...b, status: 'error' }
-            : b
-        )
-      );
+      await updateBatch(batch.block_number, { status: 'error' });
 
-      addToHistory({
-        id: `${Date.now()}-${batch.block_number}`,
-        timestamp: new Date().toISOString(),
+      await addHistoryItem({
         block_number: batch.block_number,
         contacts_count: batch.contacts.length,
         status: 'error',
@@ -147,7 +130,7 @@ export const BatchesSection = () => {
 
       toast({
         title: 'Erro no envio',
-        description: result.error || 'Erro desconhecido',
+        description: result.error || 'Falha ao enviar disparo',
         variant: 'destructive',
       });
     }
@@ -158,16 +141,13 @@ export const BatchesSection = () => {
     setScheduleDialogOpen(true);
   };
 
-  const handleConfirmSchedule = (scheduledAt: string) => {
+  const handleConfirmSchedule = async (scheduledAt: string) => {
     if (selectedBatchNumber === null) return;
 
-    setBatches(
-      batches.map(b => 
-        b.block_number === selectedBatchNumber 
-          ? { ...b, status: 'scheduled', scheduled_at: scheduledAt }
-          : b
-      )
-    );
+    await updateBatch(selectedBatchNumber, {
+      status: 'scheduled',
+      scheduled_at: scheduledAt,
+    });
 
     toast({
       title: 'Envio agendado',

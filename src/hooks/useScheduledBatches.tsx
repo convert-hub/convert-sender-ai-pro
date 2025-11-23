@@ -1,11 +1,18 @@
 import { useEffect, useRef } from 'react';
+import { useBatches } from '@/hooks/useBatches';
+import { useHistory } from '@/hooks/useHistory';
+import { useUserSettings } from '@/hooks/useUserSettings';
+import { useCampaigns } from '@/hooks/useCampaigns';
 import { useDispatch } from '@/contexts/DispatchContext';
 import { sendToWebhook } from '@/utils/webhook';
 import { toast } from '@/hooks/use-toast';
-import { BatchInfo } from '@/types/dispatch';
 
 export const useScheduledBatches = () => {
-  const { batches, setBatches, addToHistory, webhookUrl, sheetMeta, columnMapping, incrementStats, campaigns } = useDispatch();
+  const { batches, updateBatch } = useBatches();
+  const { addHistoryItem } = useHistory();
+  const { settings, incrementStats } = useUserSettings();
+  const { campaigns } = useCampaigns();
+  const { sheetMeta, columnMapping } = useDispatch();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -20,13 +27,7 @@ export const useScheduledBatches = () => {
         const scheduledTime = new Date(batch.scheduled_at!);
         
         if (now >= scheduledTime) {
-          // Update batch status to sending
-          const updatedBatchesSending = batches.map(b => 
-            b.block_number === batch.block_number 
-              ? { ...b, status: 'sending' as const }
-              : b
-          );
-          setBatches(updatedBatchesSending);
+          await updateBatch(batch.block_number, { status: 'sending' });
 
           try {
             if (!sheetMeta || !columnMapping) {
@@ -43,29 +44,18 @@ export const useScheduledBatches = () => {
               columnMapping,
               sheetMeta,
               campaign,
-              webhookUrl
+              settings?.webhook_url || ''
             );
 
-            // Update batch status to sent
-            const updatedBatchesSent = batches.map(b => 
-              b.block_number === batch.block_number 
-                ? { ...b, status: 'sent' as const }
-                : b
-            );
-            setBatches(updatedBatchesSent);
-
-            // Add to history
             if (response.success) {
-              addToHistory({
-                id: `${Date.now()}-${batch.block_number}`,
-                timestamp: new Date().toISOString(),
+              await updateBatch(batch.block_number, { status: 'sent' });
+              await addHistoryItem({
                 block_number: batch.block_number,
                 contacts_count: batch.contacts.length,
                 status: 'success',
                 response_status: response.status,
               });
-
-              incrementStats({ batches_sent: 1 });
+              await incrementStats('batches_sent', 1);
 
               toast({
                 title: 'Envio agendado concluído',
@@ -75,17 +65,8 @@ export const useScheduledBatches = () => {
               throw new Error(response.error || 'Erro ao enviar');
             }
           } catch (error) {
-            // Update batch status to error
-            const updatedBatchesError = batches.map(b => 
-              b.block_number === batch.block_number 
-                ? { ...b, status: 'error' as const }
-                : b
-            );
-            setBatches(updatedBatchesError);
-
-            addToHistory({
-              id: `${Date.now()}-${batch.block_number}`,
-              timestamp: new Date().toISOString(),
+            await updateBatch(batch.block_number, { status: 'error' });
+            await addHistoryItem({
               block_number: batch.block_number,
               contacts_count: batch.contacts.length,
               status: 'error',
@@ -102,10 +83,7 @@ export const useScheduledBatches = () => {
       }
     };
 
-    // Check every 30 seconds
     intervalRef.current = setInterval(checkScheduledBatches, 30000);
-    
-    // Check immediately on mount
     checkScheduledBatches();
 
     return () => {
@@ -113,5 +91,5 @@ export const useScheduledBatches = () => {
         clearInterval(intervalRef.current);
       }
     };
-  }, [batches, setBatches, addToHistory, webhookUrl, sheetMeta, columnMapping, incrementStats, campaigns]);
+  }, [batches, updateBatch, addHistoryItem, settings, sheetMeta, columnMapping, incrementStats, campaigns]);
 };

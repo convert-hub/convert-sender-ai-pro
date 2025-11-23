@@ -2,7 +2,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Settings, History, Grid3x3, Target, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useDispatch } from "@/contexts/DispatchContext";
+import { useBatches } from "@/hooks/useBatches";
+import { useCampaigns } from "@/hooks/useCampaigns";
+import { useUserSettings } from "@/hooks/useUserSettings";
 import { Stepper } from "./Stepper";
 import UserMenu from "./UserMenu";
 import logo from "@/assets/logo.png";
@@ -10,9 +12,11 @@ import logo from "@/assets/logo.png";
 export const NavHeader = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { webhookUrl, batches, campaigns } = useDispatch();
+  const { batches } = useBatches();
+  const { campaigns } = useCampaigns();
+  const { settings } = useUserSettings();
 
-  const isCustomWebhook = webhookUrl !== "https://eosptnbunq4hk5z.m.pipedream.net";
+  const isCustomWebhook = settings?.webhook_url !== "https://n8n.converthub.com.br/webhook/disparos-precatorizei";
   const activeCampaignsCount = campaigns.filter(c => c.status === 'active').length;
 
   return (

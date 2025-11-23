@@ -1,13 +1,23 @@
-import { useDispatch } from '@/contexts/DispatchContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { LineChart, Line, PieChart, Pie, BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell, ResponsiveContainer, Legend } from 'recharts';
 import { TrendingUp, Users, Send, CheckCircle2, XCircle, BarChart3 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useHistory } from '@/hooks/useHistory';
+import { useUserSettings } from '@/hooks/useUserSettings';
 
 export const StatsDashboard = () => {
-  const { history, stats } = useDispatch();
+  const { history } = useHistory();
+  const { settings } = useUserSettings();
+  const stats = settings?.stats || { 
+    uploads_total: 0, 
+    rows_total: 0, 
+    rows_valid: 0, 
+    rows_invalid: 0, 
+    batches_total: 0, 
+    batches_sent: 0 
+  };
 
   // Process history for success rate over time
   const successRateData = history

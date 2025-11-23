@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
 import { useDispatch } from '@/contexts/DispatchContext';
+import { useUserSettings } from '@/hooks/useUserSettings';
+import { useBatches } from '@/hooks/useBatches';
 import { validateWebhookUrl } from '@/utils/validation';
 import { testWebhook } from '@/utils/webhook';
 
@@ -16,9 +18,11 @@ const DEFAULT_WEBHOOK_URL = 'https://n8n.converthub.com.br/webhook/disparos-prec
 
 export const SettingsSection = () => {
   const navigate = useNavigate();
-  const { webhookUrl, setWebhookUrl, batches, reset } = useDispatch();
+  const { reset } = useDispatch();
+  const { settings, updateWebhookUrl } = useUserSettings();
+  const { batches } = useBatches();
   
-  const [inputUrl, setInputUrl] = useState(webhookUrl || DEFAULT_WEBHOOK_URL);
+  const [inputUrl, setInputUrl] = useState(settings?.webhook_url || DEFAULT_WEBHOOK_URL);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{
     success: boolean;
@@ -28,8 +32,14 @@ export const SettingsSection = () => {
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
-    setHasChanges(inputUrl !== webhookUrl);
-  }, [inputUrl, webhookUrl]);
+    if (settings?.webhook_url) {
+      setInputUrl(settings.webhook_url);
+    }
+  }, [settings]);
+
+  useEffect(() => {
+    setHasChanges(inputUrl !== (settings?.webhook_url || DEFAULT_WEBHOOK_URL));
+  }, [inputUrl, settings]);
 
   const handleTest = async () => {
     const validation = validateWebhookUrl(inputUrl);
@@ -65,7 +75,7 @@ export const SettingsSection = () => {
     setIsTesting(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const validation = validateWebhookUrl(inputUrl);
     
     if (!validation.valid) {
@@ -77,13 +87,17 @@ export const SettingsSection = () => {
       return;
     }
 
-    setWebhookUrl(inputUrl);
-    setHasChanges(false);
+    try {
+      await updateWebhookUrl(inputUrl);
+      setHasChanges(false);
 
-    toast({
-      title: 'Configuração salva!',
-      description: 'URL do webhook atualizada com sucesso',
-    });
+      toast({
+        title: 'Configuração salva!',
+        description: 'URL do webhook atualizada com sucesso',
+      });
+    } catch (error) {
+      console.error('Error updating webhook:', error);
+    }
   };
 
   const handleRestoreDefault = () => {
@@ -234,7 +248,7 @@ export const SettingsSection = () => {
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">URL ativa:</span>
                 <code className="px-2 py-1 bg-muted rounded text-xs break-all">
-                  {webhookUrl}
+                  {settings?.webhook_url || DEFAULT_WEBHOOK_URL}
                 </code>
               </div>
             </div>

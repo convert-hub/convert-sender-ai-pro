@@ -7,6 +7,7 @@ import { toast } from '@/hooks/use-toast';
 import { parseCSV, parseXLSX, parseGoogleSheetsURL } from '@/utils/parsers';
 import { generateExampleData } from '@/utils/exampleData';
 import { useDispatch } from '@/contexts/DispatchContext';
+import { useUserSettings } from '@/hooks/useUserSettings';
 import { useNavigate } from 'react-router-dom';
 import { CampaignSelector } from './CampaignSelector';
 
@@ -15,7 +16,8 @@ export const QuickActions = () => {
   const [sheetUrl, setSheetUrl] = useState('');
   const [showUrlInput, setShowUrlInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { setParsedData, setSheetMeta, incrementStats, currentCampaignId } = useDispatch();
+  const { setParsedData, setSheetMeta, currentCampaignId } = useDispatch();
+  const { incrementStats } = useUserSettings();
   const navigate = useNavigate();
 
   const handleFileUpload = async (file: File) => {
@@ -49,10 +51,9 @@ export const QuickActions = () => {
         campaign_id: currentCampaignId || '',
       });
       
-      incrementStats({
-        uploads_total: 1,
-        rows_total: data.rows.length,
-      });
+      await incrementStats('uploads_total', 1);
+      await incrementStats('rows_total', data.rows.length);
+      
       
       toast({
         title: 'Arquivo carregado!',
@@ -102,10 +103,9 @@ export const QuickActions = () => {
         campaign_id: currentCampaignId || '',
       });
       
-      incrementStats({
-        uploads_total: 1,
-        rows_total: data.rows.length,
-      });
+      await incrementStats('uploads_total', 1);
+      await incrementStats('rows_total', data.rows.length);
+      
       
       toast({
         title: 'Planilha carregada!',
@@ -145,10 +145,9 @@ export const QuickActions = () => {
       campaign_id: currentCampaignId || '',
     });
     
-    incrementStats({
-      uploads_total: 1,
-      rows_total: data.rows.length,
-    });
+    incrementStats('uploads_total', 1);
+    incrementStats('rows_total', data.rows.length);
+    
     
     toast({
       title: 'Dados de exemplo carregados!',

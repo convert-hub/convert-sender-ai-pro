@@ -1,9 +1,19 @@
-import { useDispatch } from '@/contexts/DispatchContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Send, TrendingUp, CheckCircle2, Users } from 'lucide-react';
+import { useHistory } from '@/hooks/useHistory';
+import { useUserSettings } from '@/hooks/useUserSettings';
 
 export const StatsOverview = () => {
-  const { history, stats } = useDispatch();
+  const { history } = useHistory();
+  const { settings } = useUserSettings();
+  const stats = settings?.stats || { 
+    uploads_total: 0, 
+    rows_total: 0, 
+    rows_valid: 0, 
+    rows_invalid: 0, 
+    batches_total: 0, 
+    batches_sent: 0 
+  };
 
   // Calculate stats from history as fallback
   const historyStats = {

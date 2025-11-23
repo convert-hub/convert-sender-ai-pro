@@ -18,10 +18,15 @@ import { useDispatch } from '@/contexts/DispatchContext';
 import { createBatches } from '@/utils/validation';
 import { Badge } from '@/components/ui/badge';
 import { CampaignSelector } from './CampaignSelector';
+import { useUserSettings } from '@/hooks/useUserSettings';
+import { useBatches } from '@/hooks/useBatches';
+import { toast as sonnerToast } from 'sonner';
 
 export const MappingSection = () => {
   const navigate = useNavigate();
-  const { parsedData, setColumnMapping, setBatches, updateStats, sheetMeta, currentCampaignId, setSheetMeta } = useDispatch();
+  const { parsedData, setColumnMapping, sheetMeta, currentCampaignId, setSheetMeta } = useDispatch();
+  const { updateStats } = useUserSettings();
+  const { addBatch } = useBatches();
   
   const [nameCol, setNameCol] = useState('');
   const [emailCol, setEmailCol] = useState('');
@@ -64,7 +69,7 @@ export const MappingSection = () => {
     );
   };
 
-  const handleGenerateBatches = () => {
+  const handleGenerateBatches = async () => {
     if (!parsedData) return;
 
     const actualEmailCol = emailCol === 'none' ? '' : emailCol;
@@ -89,19 +94,24 @@ export const MappingSection = () => {
     const result = createBatches(parsedData.rows, mapping, batchSize, sheetMeta?.campaign_id);
 
     setColumnMapping(mapping);
-    setBatches(result.batches);
-    updateStats({
-      rows_valid: result.stats.valid,
-      rows_invalid: result.stats.invalid,
-      batches_total: result.batches.length,
-    });
+    
+    // Save batches to Supabase
+    try {
+      for (const batch of result.batches) {
+        await addBatch(batch);
+      }
 
-    toast({
-      title: 'Blocos gerados!',
-      description: `${result.batches.length} blocos de até ${batchSize} contatos criados`,
-    });
+      await updateStats({
+        rows_valid: result.stats.valid,
+        rows_invalid: result.stats.invalid,
+        batches_total: result.batches.length,
+      });
 
-    navigate('/batches');
+      sonnerToast.success(`${result.batches.length} blocos criados com sucesso`);
+      navigate('/batches');
+    } catch (error) {
+      console.error('Error saving batches:', error);
+    }
   };
 
   if (!parsedData) return null;
