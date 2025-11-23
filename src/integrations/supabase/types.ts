@@ -14,7 +14,264 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      batches: {
+        Row: {
+          block_number: number
+          block_size: number
+          campaign_id: string | null
+          contacts: Json
+          created_at: string
+          id: string
+          range_end: number
+          range_start: number
+          scheduled_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          block_number: number
+          block_size: number
+          campaign_id?: string | null
+          contacts?: Json
+          created_at?: string
+          id?: string
+          range_end: number
+          range_start: number
+          scheduled_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          block_number?: number
+          block_size?: number
+          campaign_id?: string | null
+          contacts?: Json
+          created_at?: string
+          id?: string
+          range_end?: number
+          range_start?: number
+          scheduled_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batches_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "batches_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_templates: {
+        Row: {
+          ai_instructions: Json
+          created_at: string
+          description: string | null
+          id: string
+          is_custom: boolean
+          is_global: boolean
+          name: string
+          user_id: string | null
+        }
+        Insert: {
+          ai_instructions: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_custom?: boolean
+          is_global?: boolean
+          name: string
+          user_id?: string | null
+        }
+        Update: {
+          ai_instructions?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_custom?: boolean
+          is_global?: boolean
+          name?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_templates_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          ai_instructions: Json | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          objective: string | null
+          stats: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_instructions?: Json | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          objective?: string | null
+          stats?: Json | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_instructions?: Json | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          objective?: string | null
+          stats?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dispatch_history: {
+        Row: {
+          batch_id: string | null
+          block_number: number
+          contacts_count: number
+          created_at: string
+          error_message: string | null
+          id: string
+          response_status: number | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          batch_id?: string | null
+          block_number: number
+          contacts_count: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          response_status?: number | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          batch_id?: string | null
+          block_number?: number
+          contacts_count?: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          response_status?: number | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispatch_history_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispatch_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          company_name: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          company_name?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          company_name?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          created_at: string
+          id: string
+          stats: Json | null
+          updated_at: string
+          user_id: string
+          webhook_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          stats?: Json | null
+          updated_at?: string
+          user_id: string
+          webhook_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          stats?: Json | null
+          updated_at?: string
+          user_id?: string
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
