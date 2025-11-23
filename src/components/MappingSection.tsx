@@ -16,10 +16,11 @@ import { toast } from '@/hooks/use-toast';
 import { useDispatch } from '@/contexts/DispatchContext';
 import { createBatches } from '@/utils/validation';
 import { Badge } from '@/components/ui/badge';
+import { CampaignSelector } from './CampaignSelector';
 
 export const MappingSection = () => {
   const navigate = useNavigate();
-  const { parsedData, setColumnMapping, setBatches, updateStats, sheetMeta } = useDispatch();
+  const { parsedData, setColumnMapping, setBatches, updateStats, sheetMeta, currentCampaignId, setSheetMeta } = useDispatch();
   
   const [nameCol, setNameCol] = useState('');
   const [emailCol, setEmailCol] = useState('');
@@ -45,6 +46,15 @@ export const MappingSection = () => {
     setEmailCol(findColumn(['email', 'e-mail']));
     setPhoneCol(findColumn(['telefone', 'phone', 'celular', 'tel']));
   }, [parsedData, navigate]);
+
+  useEffect(() => {
+    if (currentCampaignId && sheetMeta) {
+      setSheetMeta({
+        ...sheetMeta,
+        campaign_id: currentCampaignId
+      });
+    }
+  }, [currentCampaignId]);
 
   const handleExtraColToggle = (col: string) => {
     setExtraCols(prev =>
@@ -110,7 +120,10 @@ export const MappingSection = () => {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Voltar
         </Button>
-        <h1 className="text-3xl font-bold mb-2">Mapear Colunas</h1>
+        
+        <CampaignSelector />
+        
+        <h1 className="text-3xl font-bold mb-2 mt-6">Mapear Colunas</h1>
         <p className="text-muted-foreground">
           Identifique quais colunas correspondem aos campos obrigatórios
         </p>
