@@ -81,7 +81,9 @@ export const BatchesSection = () => {
     if (!campaign) {
       toast({
         title: 'Erro',
-        description: 'Campanha não encontrada',
+        description: batch.campaign_id
+          ? 'Campanha não encontrada. Ela pode ter sido deletada.'
+          : 'Batch sem campanha associada. Por favor, importe novamente.',
         variant: 'destructive',
       });
       return;

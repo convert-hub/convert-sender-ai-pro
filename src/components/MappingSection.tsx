@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 
 export const MappingSection = () => {
   const navigate = useNavigate();
-  const { parsedData, setColumnMapping, setBatches, updateStats } = useDispatch();
+  const { parsedData, setColumnMapping, setBatches, updateStats, sheetMeta } = useDispatch();
   
   const [nameCol, setNameCol] = useState('');
   const [emailCol, setEmailCol] = useState('');
@@ -74,7 +74,7 @@ export const MappingSection = () => {
       extras: extraCols,
     };
 
-    const result = createBatches(parsedData.rows, mapping);
+    const result = createBatches(parsedData.rows, mapping, 50, sheetMeta?.campaign_id);
 
     setColumnMapping(mapping);
     setBatches(result.batches);
