@@ -33,6 +33,12 @@ interface UserWithRole extends UserProfile {
   daily_dispatch_limit?: number;
 }
 
+const getLimitBadgeVariant = (limit: number): "default" | "secondary" | "outline" => {
+  if (limit === 50) return "secondary"; // Padrão
+  if (limit < 50) return "outline"; // Reduzido
+  return "default"; // Aumentado
+};
+
 const UsersManagement = () => {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,6 +148,12 @@ const UsersManagement = () => {
   const handleUpdateLimit = async () => {
     if (!editingLimit) return;
 
+    // Validação
+    if (newLimit < 1 || newLimit > 1000) {
+      toast.error('O limite deve estar entre 1 e 1000 envios por dia');
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('user_settings')
@@ -150,7 +162,7 @@ const UsersManagement = () => {
 
       if (error) throw error;
 
-      toast.success('Limite diário atualizado');
+      toast.success(`Limite diário atualizado para ${newLimit} envios/dia`);
       setEditingLimit(null);
       fetchUsers();
     } catch (error) {
@@ -265,6 +277,7 @@ const UsersManagement = () => {
                   <TableHead>Status</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Webhook</TableHead>
+                  <TableHead>Limite Diário</TableHead>
                   <TableHead>Cadastro</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -295,27 +308,32 @@ const UsersManagement = () => {
                           ? `${user.webhook_url.substring(0, 30)}...` 
                           : user.webhook_url}
                       </code>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span>{user.daily_dispatch_limit || 50}</span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setEditingLimit({
-                                  userId: user.id,
-                                  currentLimit: user.daily_dispatch_limit || 50,
-                                  userName: user.email
-                                });
-                                setNewLimit(user.daily_dispatch_limit || 50);
-                              }}
-                            >
-                              <Settings className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={getLimitBadgeVariant(user.daily_dispatch_limit || 50)}
+                          className="font-mono"
+                        >
+                          {user.daily_dispatch_limit || 50}/dia
+                        </Badge>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingLimit({
+                              userId: user.id,
+                              currentLimit: user.daily_dispatch_limit || 50,
+                              userName: user.full_name || user.email
+                            });
+                            setNewLimit(user.daily_dispatch_limit || 50);
+                          }}
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       {new Date(user.created_at).toLocaleDateString('pt-BR')}
                     </TableCell>
                     <TableCell className="text-right">
@@ -490,6 +508,48 @@ const UsersManagement = () => {
               </Button>
               <Button onClick={handleUpdateWebhook}>
                 Salvar Webhook
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Daily Limit Edit Dialog */}
+      <Dialog open={!!editingLimit} onOpenChange={() => setEditingLimit(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Configurar Limite Diário</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Configurando limite diário para: <strong>{editingLimit?.userName}</strong>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Limite atual: <strong>{editingLimit?.currentLimit} envios/dia</strong>
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="daily-limit">Novo Limite Diário</Label>
+              <Input
+                id="daily-limit"
+                type="number"
+                min="1"
+                max="1000"
+                value={newLimit}
+                onChange={(e) => setNewLimit(parseInt(e.target.value))}
+                placeholder="50"
+              />
+              <p className="text-xs text-muted-foreground">
+                Número máximo de contatos que o usuário pode enviar por dia (1-1000)
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditingLimit(null)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleUpdateLimit}>
+                Salvar Limite
               </Button>
             </div>
           </div>
