@@ -33,7 +33,7 @@ export const BatchesSection = () => {
   const { columnMapping, sheetMeta } = useDispatch();
   const { batches, updateBatch } = useBatches();
   const { addHistoryItem } = useHistory();
-  const { settings, incrementStats } = useUserSettings();
+  const { settings, incrementStats, checkDailyLimit } = useUserSettings();
   const { campaigns } = useCampaigns();
   const navigate = useNavigate();
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
@@ -86,6 +86,18 @@ export const BatchesSection = () => {
   }
 
   const handleSendBatch = async (batch: BatchInfo) => {
+    // Check daily limit before sending
+    const limitCheck = await checkDailyLimit(batch.contacts.length);
+    
+    if (!limitCheck.allowed) {
+      toast({
+        title: 'Limite diário atingido',
+        description: `Você já enviou ${limitCheck.used_today} de ${limitCheck.limit} disparos permitidos hoje. Restam ${limitCheck.remaining} envios.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const campaign = campaigns.find(c => c.id === batch.campaign_id);
     if (!campaign) {
       toast({
@@ -116,7 +128,7 @@ export const BatchesSection = () => {
 
       toast({
         title: 'Disparo enviado!',
-        description: `Bloco #${batch.block_number} enviado com sucesso`,
+        description: `Bloco #${batch.block_number} enviado com sucesso. Restam ${limitCheck.remaining} envios hoje de ${limitCheck.limit} permitidos.`,
       });
     } else {
       await updateBatch(batch.block_number, { status: 'error' });

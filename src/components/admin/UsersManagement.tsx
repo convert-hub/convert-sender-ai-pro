@@ -30,6 +30,7 @@ interface UserWithRole extends UserProfile {
   roles: ('admin' | 'user')[];
   isAdmin: boolean;
   webhook_url?: string;
+  daily_dispatch_limit?: number;
 }
 
 const UsersManagement = () => {
@@ -39,6 +40,8 @@ const UsersManagement = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | AccountStatus>('all');
   const [editingWebhook, setEditingWebhook] = useState<{userId: string, currentUrl: string, userName: string} | null>(null);
   const [newWebhookUrl, setNewWebhookUrl] = useState('');
+  const [editingLimit, setEditingLimit] = useState<{userId: string, currentLimit: number, userName: string} | null>(null);
+  const [newLimit, setNewLimit] = useState<number>(50);
 
   const fetchUsers = async () => {
     try {
@@ -59,10 +62,10 @@ const UsersManagement = () => {
 
       if (rolesError) throw rolesError;
 
-      // Fetch all user settings (webhooks)
+      // Fetch user settings (webhook + daily limit)
       const { data: settings, error: settingsError } = await supabase
         .from('user_settings')
-        .select('user_id, webhook_url');
+        .select('user_id, webhook_url, daily_dispatch_limit');
 
       if (settingsError) throw settingsError;
 
@@ -79,6 +82,7 @@ const UsersManagement = () => {
           roles: userRoles,
           isAdmin: userRoles.includes('admin'),
           webhook_url: userSettings?.webhook_url || 'Não configurado',
+          daily_dispatch_limit: userSettings?.daily_dispatch_limit || 50,
         };
       });
 
@@ -132,6 +136,26 @@ const UsersManagement = () => {
       toast.error(error.message || 'Erro ao remover admin');
     } finally {
       setProcessingUserId(null);
+    }
+  };
+
+  const handleUpdateLimit = async () => {
+    if (!editingLimit) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_settings')
+        .update({ daily_dispatch_limit: newLimit })
+        .eq('user_id', editingLimit.userId);
+
+      if (error) throw error;
+
+      toast.success('Limite diário atualizado');
+      setEditingLimit(null);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error updating limit:', error);
+      toast.error('Erro ao atualizar limite');
     }
   };
 
@@ -271,8 +295,27 @@ const UsersManagement = () => {
                           ? `${user.webhook_url.substring(0, 30)}...` 
                           : user.webhook_url}
                       </code>
-                    </TableCell>
-                    <TableCell>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span>{user.daily_dispatch_limit || 50}</span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingLimit({
+                                  userId: user.id,
+                                  currentLimit: user.daily_dispatch_limit || 50,
+                                  userName: user.email
+                                });
+                                setNewLimit(user.daily_dispatch_limit || 50);
+                              }}
+                            >
+                              <Settings className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell>
                       {new Date(user.created_at).toLocaleDateString('pt-BR')}
                     </TableCell>
                     <TableCell className="text-right">

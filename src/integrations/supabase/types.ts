@@ -267,7 +267,10 @@ export type Database = {
       user_settings: {
         Row: {
           created_at: string
+          daily_dispatch_limit: number | null
+          dispatches_today: number | null
           id: string
+          last_dispatch_date: string | null
           stats: Json | null
           updated_at: string
           user_id: string
@@ -275,7 +278,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          daily_dispatch_limit?: number | null
+          dispatches_today?: number | null
           id?: string
+          last_dispatch_date?: string | null
           stats?: Json | null
           updated_at?: string
           user_id: string
@@ -283,7 +289,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          daily_dispatch_limit?: number | null
+          dispatches_today?: number | null
           id?: string
+          last_dispatch_date?: string | null
           stats?: Json | null
           updated_at?: string
           user_id?: string
@@ -304,6 +313,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_and_update_daily_limit: {
+        Args: { _contacts_to_send: number; _user_id: string }
+        Returns: Json
+      }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]

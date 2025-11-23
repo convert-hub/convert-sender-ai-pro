@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Campaign, AIInstructions, CampaignTemplate } from '@/types/dispatch';
-import { useDispatch } from '@/contexts/DispatchContext';
+import { Campaign, AIInstructions } from '@/types/dispatch';
+import { useCampaignTemplates } from '@/hooks/useCampaignTemplates';
 import { useCampaigns } from '@/hooks/useCampaigns';
+import { useAuth } from '@/contexts/AuthContext';
 import { validateCampaign } from '@/utils/campaignValidation';
 import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,8 +24,9 @@ interface CampaignFormProps {
 }
 
 export const CampaignForm = ({ open, onClose, campaign }: CampaignFormProps) => {
-  const { templates } = useDispatch();
+  const { templates, canManageTemplates } = useCampaignTemplates();
   const { addCampaign, updateCampaign } = useCampaigns();
+  const { isAdmin } = useAuth();
   const [isTemplateManagerOpen, setIsTemplateManagerOpen] = useState(false);
   
   const [formData, setFormData] = useState<Partial<Campaign>>({
@@ -205,15 +207,17 @@ export const CampaignForm = ({ open, onClose, campaign }: CampaignFormProps) => 
                   </Select>
                 </div>
                 
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsTemplateManagerOpen(true)}
-                  className="mt-8"
-                >
-                  <Save className="mr-2 h-4 w-4" />
-                  Gerenciar Templates
-                </Button>
+                {canManageTemplates && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsTemplateManagerOpen(true)}
+                    className="mt-8"
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    Gerenciar Templates
+                  </Button>
+                )}
               </div>
 
               <Separator className="my-6" />
