@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Campaign } from '@/types/dispatch';
-import { Edit, Archive, Pause, Play, Trash2, Users, Send, Clock } from 'lucide-react';
+import { Edit, Archive, Pause, Play, Trash2, Users, Send, Clock, ArchiveRestore } from 'lucide-react';
 import { useDispatch } from '@/contexts/DispatchContext';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -34,7 +34,7 @@ export const CampaignCard = ({ campaign, onEdit }: CampaignCardProps) => {
     });
     
     const statusText = {
-      active: 'ativada',
+      active: newStatus === 'active' && campaign.status === 'archived' ? 'desarquivada' : 'ativada',
       paused: 'pausada',
       archived: 'arquivada'
     }[newStatus];
@@ -161,25 +161,37 @@ export const CampaignCard = ({ campaign, onEdit }: CampaignCardProps) => {
         )}
 
         {campaign.status === 'archived' && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Deletar campanha?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta ação não pode ser desfeita. A campanha será permanentemente removida.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>Deletar</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleStatusChange('active')}
+              className="flex-1"
+            >
+              <ArchiveRestore className="mr-2 h-4 w-4" />
+              Desarquivar
+            </Button>
+            
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Deletar campanha?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação não pode ser desfeita. A campanha será permanentemente removida.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete}>Deletar</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
         )}
       </CardFooter>
     </Card>
