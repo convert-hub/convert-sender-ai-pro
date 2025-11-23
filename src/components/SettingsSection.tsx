@@ -11,6 +11,7 @@ import { toast } from '@/hooks/use-toast';
 import { useDispatch } from '@/contexts/DispatchContext';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { useBatches } from '@/hooks/useBatches';
+import { useAuth } from '@/contexts/AuthContext';
 import { validateWebhookUrl } from '@/utils/validation';
 import { testWebhook } from '@/utils/webhook';
 
@@ -21,6 +22,7 @@ export const SettingsSection = () => {
   const { reset } = useDispatch();
   const { settings, updateWebhookUrl } = useUserSettings();
   const { batches } = useBatches();
+  const { isAdmin } = useAuth();
   
   const [inputUrl, setInputUrl] = useState(settings?.webhook_url || DEFAULT_WEBHOOK_URL);
   const [isTesting, setIsTesting] = useState(false);
@@ -151,6 +153,17 @@ export const SettingsSection = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Admin Warning for Regular Users */}
+            {!isAdmin && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Esta configuração é gerenciada pelo administrador do sistema. 
+                  Se precisar alterar o webhook, entre em contato com o suporte.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* URL Input */}
             <div className="space-y-2">
               <Label htmlFor="webhook-url">URL do Webhook</Label>
@@ -161,9 +174,13 @@ export const SettingsSection = () => {
                 onChange={(e) => setInputUrl(e.target.value)}
                 placeholder="https://n8n.example.com/webhook/..."
                 className="font-mono text-sm"
+                disabled={!isAdmin}
               />
               <p className="text-xs text-muted-foreground">
-                Insira a URL completa do webhook do n8n que receberá os disparos
+                {isAdmin 
+                  ? 'Insira a URL completa do webhook do n8n que receberá os disparos'
+                  : 'URL configurada pelo administrador do sistema'
+                }
               </p>
             </div>
 
@@ -204,44 +221,46 @@ export const SettingsSection = () => {
               </Alert>
             )}
 
-            {/* Actions */}
-            <div className="flex flex-wrap gap-3">
-              <Button
-                onClick={handleTest}
-                variant="outline"
-                disabled={isTesting || !inputUrl}
-              >
-                {isTesting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Testando...
-                  </>
-                ) : (
-                  <>
-                    <TestTube className="mr-2 h-4 w-4" />
-                    Testar Webhook
-                  </>
-                )}
-              </Button>
-
-              <Button
-                onClick={handleSave}
-                disabled={!hasChanges || !inputUrl}
-              >
-                <Save className="mr-2 h-4 w-4" />
-                Salvar
-              </Button>
-
-              {!isUsingDefault && (
+            {/* Actions - Only visible for admins */}
+            {isAdmin && (
+              <div className="flex flex-wrap gap-3">
                 <Button
-                  onClick={handleRestoreDefault}
-                  variant="ghost"
+                  onClick={handleTest}
+                  variant="outline"
+                  disabled={isTesting || !inputUrl}
                 >
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  Restaurar Padrão
+                  {isTesting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Testando...
+                    </>
+                  ) : (
+                    <>
+                      <TestTube className="mr-2 h-4 w-4" />
+                      Testar Webhook
+                    </>
+                  )}
                 </Button>
-              )}
-            </div>
+
+                <Button
+                  onClick={handleSave}
+                  disabled={!hasChanges || !inputUrl}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvar
+                </Button>
+
+                {!isUsingDefault && (
+                  <Button
+                    onClick={handleRestoreDefault}
+                    variant="ghost"
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Restaurar Padrão
+                  </Button>
+                )}
+              </div>
+            )}
 
             {/* Current Active URL */}
             <div className="pt-4 border-t">
