@@ -114,7 +114,8 @@ export const removeDuplicates = (contacts: Contact[]): Contact[] => {
 export const createBatches = (
   rows: Record<string, string>[],
   mapping: ColumnMapping,
-  batchSize: number = 50
+  batchSize: number = 50,
+  campaign_id?: string
 ) => {
   const validContacts: Contact[] = [];
   let invalidCount = 0;
@@ -145,6 +146,7 @@ export const createBatches = (
       contacts: batchContacts,
       status: 'ready' as const,
       created_at: new Date().toISOString(),
+      campaign_id: campaign_id || '',
     });
   }
   
