@@ -4,6 +4,7 @@ import { ArrowRight, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -26,6 +27,7 @@ export const MappingSection = () => {
   const [emailCol, setEmailCol] = useState('');
   const [phoneCol, setPhoneCol] = useState('');
   const [extraCols, setExtraCols] = useState<string[]>([]);
+  const [batchSize, setBatchSize] = useState(50);
 
   useEffect(() => {
     if (!parsedData) {
@@ -84,7 +86,7 @@ export const MappingSection = () => {
       extras: extraCols,
     };
 
-    const result = createBatches(parsedData.rows, mapping, 50, sheetMeta?.campaign_id);
+    const result = createBatches(parsedData.rows, mapping, batchSize, sheetMeta?.campaign_id);
 
     setColumnMapping(mapping);
     setBatches(result.batches);
@@ -96,7 +98,7 @@ export const MappingSection = () => {
 
     toast({
       title: 'Blocos gerados!',
-      description: `${result.batches.length} blocos de até 50 contatos criados`,
+      description: `${result.batches.length} blocos de até ${batchSize} contatos criados`,
     });
 
     navigate('/batches');
@@ -220,6 +222,37 @@ export const MappingSection = () => {
         </Card>
       )}
 
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Configuração de Lotes</CardTitle>
+          <CardDescription>
+            Defina quantos contatos cada lote terá (máximo 50)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Label htmlFor="batch-size">Tamanho do Lote</Label>
+            <Input
+              id="batch-size"
+              type="number"
+              min="1"
+              max="50"
+              value={batchSize}
+              onChange={(e) => {
+                const value = parseInt(e.target.value);
+                if (value >= 1 && value <= 50) {
+                  setBatchSize(value);
+                }
+              }}
+              className="w-32"
+            />
+            <p className="text-sm text-muted-foreground">
+              Valor entre 1 e 50 contatos por lote
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="mb-8">
         <CardHeader>
           <CardTitle>Pré-visualização</CardTitle>
@@ -277,7 +310,7 @@ export const MappingSection = () => {
           onClick={handleGenerateBatches}
           disabled={(!emailCol || emailCol === 'none') && (!phoneCol || phoneCol === 'none')}
         >
-          Gerar Blocos de 50
+          Gerar Blocos de {batchSize}
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
