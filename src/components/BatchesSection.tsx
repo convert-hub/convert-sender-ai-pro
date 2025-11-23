@@ -38,6 +38,7 @@ export const BatchesSection = () => {
   const navigate = useNavigate();
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [selectedBatchNumber, setSelectedBatchNumber] = useState<number | null>(null);
+  const [selectedBatchContactsCount, setSelectedBatchContactsCount] = useState<number>(0);
   
   // Hook para verificar e enviar batches agendados
   useScheduledBatches();
@@ -137,7 +138,9 @@ export const BatchesSection = () => {
   };
 
   const handleScheduleBatch = (batchNumber: number) => {
+    const batch = batches.find(b => b.block_number === batchNumber);
     setSelectedBatchNumber(batchNumber);
+    setSelectedBatchContactsCount(batch?.contacts.length || 0);
     setScheduleDialogOpen(true);
   };
 
@@ -338,6 +341,7 @@ export const BatchesSection = () => {
         onOpenChange={setScheduleDialogOpen}
         onSchedule={handleConfirmSchedule}
         batchNumber={selectedBatchNumber || 0}
+        batchContactsCount={selectedBatchContactsCount}
       />
     </div>
   );

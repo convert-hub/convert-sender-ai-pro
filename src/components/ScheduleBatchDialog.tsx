@@ -1,23 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Clock, Calendar as CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Clock, Calendar as CalendarIcon, AlertTriangle } from 'lucide-react';
+import { format, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useBatches } from '@/hooks/useBatches';
+import { useUserSettings } from '@/hooks/useUserSettings';
 
 interface ScheduleBatchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSchedule: (scheduledAt: string) => void;
   batchNumber: number;
+  batchContactsCount: number;
 }
 
-export const ScheduleBatchDialog = ({ open, onOpenChange, onSchedule, batchNumber }: ScheduleBatchDialogProps) => {
+export const ScheduleBatchDialog = ({ open, onOpenChange, onSchedule, batchNumber, batchContactsCount }: ScheduleBatchDialogProps) => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedTime, setSelectedTime] = useState<string>('12:00');
+  const [limitWarning, setLimitWarning] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
+
+  const { batches } = useBatches();
+  const { settings } = useUserSettings();
 
   const handleSchedule = () => {
     if (!selectedDate) return;
@@ -29,6 +37,39 @@ export const ScheduleBatchDialog = ({ open, onOpenChange, onSchedule, batchNumbe
     onSchedule(scheduledDateTime.toISOString());
     onOpenChange(false);
   };
+
+  // Check projected dispatches when date changes
+  useEffect(() => {
+    if (!selectedDate || !settings) return;
+
+    const dailyLimit = (settings.stats as any)?.daily_dispatch_limit || 50;
+    
+    // Count contacts already scheduled for the selected date
+    const scheduledForDate = batches
+      .filter(batch => {
+        if (!batch.scheduled_at || batch.status !== 'scheduled') return false;
+        const batchDate = new Date(batch.scheduled_at);
+        return isSameDay(batchDate, selectedDate);
+      })
+      .reduce((total, batch) => total + batch.contacts.length, 0);
+
+    // Add current batch contacts
+    const projectedTotal = scheduledForDate + batchContactsCount;
+
+    if (projectedTotal > dailyLimit) {
+      setLimitWarning({
+        show: true,
+        message: `Atenção: Você já possui ${scheduledForDate} envios agendados para este dia. Com este lote (${batchContactsCount} contatos), o total seria ${projectedTotal} envios, excedendo o limite diário de ${dailyLimit}.`
+      });
+    } else if (projectedTotal > dailyLimit * 0.8) {
+      setLimitWarning({
+        show: true,
+        message: `Aviso: Com este agendamento, você terá ${projectedTotal} de ${dailyLimit} envios programados para este dia (${Math.round((projectedTotal / dailyLimit) * 100)}% do limite).`
+      });
+    } else {
+      setLimitWarning({ show: false, message: '' });
+    }
+  }, [selectedDate, batches, batchContactsCount, settings]);
 
   const minDate = new Date();
   minDate.setHours(0, 0, 0, 0);
@@ -74,6 +115,15 @@ export const ScheduleBatchDialog = ({ open, onOpenChange, onSchedule, batchNumbe
               className="w-full"
             />
           </div>
+
+          {limitWarning.show && (
+            <Alert variant={limitWarning.message.startsWith('Atenção') ? 'destructive' : 'default'}>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                {limitWarning.message}
+              </AlertDescription>
+            </Alert>
+          )}
 
           {selectedDate && (
             <div className="bg-primary/10 border border-primary/20 rounded-md p-3">
