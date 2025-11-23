@@ -3,13 +3,23 @@ import { ArrowLeft, CheckCircle2, XCircle, Home } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useDispatch } from '@/contexts/DispatchContext';
+import { useHistory } from '@/hooks/useHistory';
+import { useUserSettings } from '@/hooks/useUserSettings';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export const HistorySection = () => {
   const navigate = useNavigate();
-  const { history, stats } = useDispatch();
+  const { history } = useHistory();
+  const { settings } = useUserSettings();
+  const stats = settings?.stats || { 
+    uploads_total: 0, 
+    rows_total: 0, 
+    rows_valid: 0, 
+    rows_invalid: 0, 
+    batches_total: 0, 
+    batches_sent: 0 
+  };
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">

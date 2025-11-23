@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { useDispatch } from '@/contexts/DispatchContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, XCircle, ArrowRight, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useHistory } from '@/hooks/useHistory';
 
 interface RecentHistoryProps {
   limit?: number;
@@ -13,7 +13,7 @@ interface RecentHistoryProps {
 
 export const RecentHistory = ({ limit = 5 }: RecentHistoryProps) => {
   const navigate = useNavigate();
-  const { history, clearHistory } = useDispatch();
+  const { history } = useHistory();
 
   const recentEntries = history.slice(0, limit);
 
@@ -39,18 +39,6 @@ export const RecentHistory = ({ limit = 5 }: RecentHistoryProps) => {
           Últimos Disparos
         </h2>
         <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              if (confirm('Tem certeza que deseja limpar todo o histórico?')) {
-                clearHistory();
-              }
-            }}
-            className="text-destructive hover:text-destructive"
-          >
-            Limpar Histórico
-          </Button>
           <Button
             variant="ghost"
             size="sm"

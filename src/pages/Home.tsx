@@ -17,6 +17,8 @@ import {
   Legend,
 } from "recharts";
 import { useDispatch } from "@/contexts/DispatchContext";
+import { useHistory } from "@/hooks/useHistory";
+import { useBatches } from "@/hooks/useBatches";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import logo from "@/assets/logo.png";
@@ -27,7 +29,9 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 
 const Home = () => {
-  const { history, batches, reset } = useDispatch();
+  const { reset } = useDispatch();
+  const { history } = useHistory();
+  const { batches } = useBatches();
   const navigate = useNavigate();
 
   // Process history for success rate over time

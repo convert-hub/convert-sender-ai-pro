@@ -3,13 +3,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDispatch } from '@/contexts/DispatchContext';
+import { useCampaigns } from '@/hooks/useCampaigns';
 import { Plus, Target, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { CampaignForm } from './CampaignForm';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export const CampaignSelector = () => {
-  const { campaigns, currentCampaignId, setCurrentCampaignId } = useDispatch();
+  const { currentCampaignId, setCurrentCampaignId } = useDispatch();
+  const { campaigns } = useCampaigns();
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const activeCampaigns = campaigns.filter(c => c.status === 'active');

@@ -1,7 +1,7 @@
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Plus, Target } from 'lucide-react';
-import { useDispatch } from '@/contexts/DispatchContext';
+import { useCampaigns } from '@/hooks/useCampaigns';
 import { CampaignCard } from '@/components/CampaignCard';
 import { CampaignForm } from '@/components/CampaignForm';
 import { useState } from 'react';
@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Campaign } from '@/types/dispatch';
 
 const Campaigns = () => {
-  const { campaigns } = useDispatch();
+  const { campaigns } = useCampaigns();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
 

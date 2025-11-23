@@ -3,7 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Campaign } from '@/types/dispatch';
 import { Edit, Archive, Pause, Play, Trash2, Users, Send, Clock, ArchiveRestore } from 'lucide-react';
-import { useDispatch } from '@/contexts/DispatchContext';
+import { useCampaigns } from '@/hooks/useCampaigns';
+import { useBatches } from '@/hooks/useBatches';
 import { toast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -25,27 +26,29 @@ interface CampaignCardProps {
 }
 
 export const CampaignCard = ({ campaign, onEdit }: CampaignCardProps) => {
-  const { updateCampaign, deleteCampaign, batches } = useDispatch();
+  const { updateCampaign, deleteCampaign } = useCampaigns();
+  const { batches } = useBatches();
 
-  const handleStatusChange = (newStatus: Campaign['status']) => {
-    updateCampaign(campaign.id, { 
-      status: newStatus,
-      updated_at: new Date().toISOString()
-    });
-    
-    const statusText = {
-      active: newStatus === 'active' && campaign.status === 'archived' ? 'desarquivada' : 'ativada',
-      paused: 'pausada',
-      archived: 'arquivada'
-    }[newStatus];
-    
-    toast({
-      title: 'Status alterado',
-      description: `Campanha ${statusText} com sucesso`,
-    });
+  const handleStatusChange = async (newStatus: Campaign['status']) => {
+    try {
+      await updateCampaign(campaign.id, { status: newStatus });
+      
+      const statusText = {
+        active: newStatus === 'active' && campaign.status === 'archived' ? 'desarquivada' : 'ativada',
+        paused: 'pausada',
+        archived: 'arquivada'
+      }[newStatus];
+      
+      toast({
+        title: 'Status alterado',
+        description: `Campanha ${statusText} com sucesso`,
+      });
+    } catch (error) {
+      console.error('Error updating campaign status:', error);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     const hasBatches = batches.some(b => b.campaign_id === campaign.id);
     
     if (hasBatches) {
@@ -57,11 +60,15 @@ export const CampaignCard = ({ campaign, onEdit }: CampaignCardProps) => {
       return;
     }
     
-    deleteCampaign(campaign.id);
-    toast({
-      title: 'Campanha deletada',
-      description: 'A campanha foi removida com sucesso',
-    });
+    try {
+      await deleteCampaign(campaign.id);
+      toast({
+        title: 'Campanha deletada',
+        description: 'A campanha foi removida com sucesso',
+      });
+    } catch (error) {
+      console.error('Error deleting campaign:', error);
+    }
   };
 
   const statusColors = {

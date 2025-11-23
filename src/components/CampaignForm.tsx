@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Campaign, AIInstructions, CampaignTemplate } from '@/types/dispatch';
 import { useDispatch } from '@/contexts/DispatchContext';
+import { useCampaigns } from '@/hooks/useCampaigns';
 import { validateCampaign } from '@/utils/campaignValidation';
 import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,7 +23,8 @@ interface CampaignFormProps {
 }
 
 export const CampaignForm = ({ open, onClose, campaign }: CampaignFormProps) => {
-  const { addCampaign, updateCampaign, templates } = useDispatch();
+  const { templates } = useDispatch();
+  const { addCampaign, updateCampaign } = useCampaigns();
   const [isTemplateManagerOpen, setIsTemplateManagerOpen] = useState(false);
   
   const [formData, setFormData] = useState<Partial<Campaign>>({
@@ -80,7 +82,7 @@ export const CampaignForm = ({ open, onClose, campaign }: CampaignFormProps) => 
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const validation = validateCampaign(formData);
     
     if (!validation.isValid) {
@@ -92,44 +94,30 @@ export const CampaignForm = ({ open, onClose, campaign }: CampaignFormProps) => 
       return;
     }
 
-    if (campaign) {
-      updateCampaign(campaign.id, {
-        ...formData,
-        updated_at: new Date().toISOString(),
-      } as Campaign);
-      
-      toast({
-        title: 'Campanha atualizada',
-        description: 'As alterações foram salvas com sucesso',
-      });
-    } else {
-      const newCampaign: Campaign = {
-        id: `campaign_${Date.now()}`,
-        name: formData.name!,
-        objective: formData.objective!,
-        description: formData.description || '',
-        status: 'active',
-        ai_instructions: formData.ai_instructions!,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        stats: {
-          total_uploads: 0,
-          total_contacts: 0,
-          total_batches: 0,
-          total_sent: 0,
-          total_scheduled: 0,
-        },
-      };
-      
-      addCampaign(newCampaign);
-      
-      toast({
-        title: 'Campanha criada',
-        description: 'A nova campanha foi criada com sucesso',
-      });
-    }
+    try {
+      if (campaign) {
+        await updateCampaign(campaign.id, formData as Partial<Campaign>);
+      } else {
+        await addCampaign({
+          name: formData.name!,
+          objective: formData.objective!,
+          description: formData.description || '',
+          status: 'active',
+          ai_instructions: formData.ai_instructions!,
+          stats: {
+            total_uploads: 0,
+            total_contacts: 0,
+            total_batches: 0,
+            total_sent: 0,
+            total_scheduled: 0,
+          },
+        });
+      }
 
-    onClose();
+      onClose();
+    } catch (error) {
+      console.error('Error saving campaign:', error);
+    }
   };
 
   const updateAIInstructions = (field: keyof AIInstructions, value: string) => {
