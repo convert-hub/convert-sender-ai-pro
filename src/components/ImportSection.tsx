@@ -17,6 +17,15 @@ export const ImportSection = () => {
   const navigate = useNavigate();
 
   const handleFileUpload = async (file: File) => {
+    if (!currentCampaignId) {
+      toast({
+        title: 'Selecione uma campanha',
+        description: 'É necessário selecionar uma campanha antes de importar dados',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       let data;
@@ -61,6 +70,15 @@ export const ImportSection = () => {
   };
 
   const handleUrlLoad = async () => {
+    if (!currentCampaignId) {
+      toast({
+        title: 'Selecione uma campanha',
+        description: 'É necessário selecionar uma campanha antes de importar dados',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!sheetUrl.trim()) {
       toast({
         title: "URL vazia",
@@ -105,6 +123,15 @@ export const ImportSection = () => {
   };
 
   const handleExampleData = () => {
+    if (!currentCampaignId) {
+      toast({
+        title: 'Selecione uma campanha',
+        description: 'É necessário selecionar uma campanha antes de importar dados',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const data = generateExampleData();
     setParsedData(data);
     setSheetMeta({
