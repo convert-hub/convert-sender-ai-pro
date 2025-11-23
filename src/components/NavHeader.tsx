@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Settings, History, Grid3x3, Target, Upload } from "lucide-react";
+import { Settings, History, Grid3x3, Target, Upload, Shield } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { useBatches } from "@/hooks/useBatches";
 import { useCampaigns } from "@/hooks/useCampaigns";
@@ -12,6 +13,7 @@ import logo from "@/assets/logo.png";
 export const NavHeader = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAdmin } = useAuth();
   const { batches } = useBatches();
   const { campaigns } = useCampaigns();
   const { settings } = useUserSettings();
@@ -109,6 +111,17 @@ export const NavHeader = () => {
               </Badge>
             )}
           </Button>
+
+          {isAdmin && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/admin")}
+            >
+              <Shield className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Admin</span>
+            </Button>
+          )}
 
           <UserMenu />
         </div>
