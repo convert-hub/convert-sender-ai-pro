@@ -8,6 +8,7 @@ import { parseCSV, parseXLSX, parseGoogleSheetsURL } from '@/utils/parsers';
 import { generateExampleData } from '@/utils/exampleData';
 import { useDispatch } from '@/contexts/DispatchContext';
 import { useNavigate } from 'react-router-dom';
+import { CampaignSelector } from './CampaignSelector';
 
 export const QuickActions = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -18,6 +19,15 @@ export const QuickActions = () => {
   const navigate = useNavigate();
 
   const handleFileUpload = async (file: File) => {
+    if (!currentCampaignId) {
+      toast({
+        title: 'Selecione uma campanha',
+        description: 'É necessário selecionar uma campanha antes de importar dados',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       let data;
@@ -62,6 +72,15 @@ export const QuickActions = () => {
   };
 
   const handleUrlLoad = async () => {
+    if (!currentCampaignId) {
+      toast({
+        title: 'Selecione uma campanha',
+        description: 'É necessário selecionar uma campanha antes de importar dados',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!sheetUrl.trim()) {
       toast({
         title: 'URL vazia',
@@ -108,6 +127,15 @@ export const QuickActions = () => {
   };
 
   const handleExampleData = () => {
+    if (!currentCampaignId) {
+      toast({
+        title: 'Selecione uma campanha',
+        description: 'É necessário selecionar uma campanha antes de importar dados',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const data = generateExampleData();
     setParsedData(data);
     setSheetMeta({
@@ -131,11 +159,14 @@ export const QuickActions = () => {
   };
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold flex items-center gap-2">
-        <span className="text-2xl">⚡</span>
-        Ações Rápidas
-      </h2>
+    <div className="space-y-6">
+      <CampaignSelector />
+      
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold flex items-center gap-2">
+          <span className="text-2xl">⚡</span>
+          Ações Rápidas
+        </h2>
       
       <div className="grid md:grid-cols-3 gap-4">
         {/* Upload Card */}
@@ -267,6 +298,7 @@ export const QuickActions = () => {
             </Button>
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   );
