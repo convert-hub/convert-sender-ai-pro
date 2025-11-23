@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Home } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,14 +14,22 @@ export const HistorySection = () => {
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="mb-8">
-        <Button
-          variant="ghost"
-          onClick={() => navigate('/batches')}
-          className="mb-4"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Voltar aos Blocos
-        </Button>
+        <div className="flex gap-2 mb-4">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/batches')}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar aos Blocos
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/')}
+          >
+            <Home className="mr-2 h-4 w-4" />
+            Home
+          </Button>
+        </div>
         <h1 className="text-3xl font-bold mb-2">Histórico de Disparos</h1>
         <p className="text-muted-foreground">
           Registro de todos os envios realizados

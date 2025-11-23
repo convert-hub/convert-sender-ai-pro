@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Upload, Link, FileSpreadsheet, Loader2, Settings } from "lucide-react";
+import { Upload, Link, FileSpreadsheet, Loader2, Settings, Home } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -156,7 +156,11 @@ export const ImportSection = () => {
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-5xl">
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-between mb-4">
+        <Button variant="ghost" onClick={() => navigate("/")}>
+          <Home className="mr-2 h-4 w-4" />
+          Voltar para Home
+        </Button>
         <Button variant="ghost" size="icon" onClick={() => navigate("/settings")} title="Configurações">
           <Settings className="h-5 w-5" />
         </Button>
