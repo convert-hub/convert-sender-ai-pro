@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Upload, Link, FileSpreadsheet, Loader2, Settings, Home } from "lucide-react";
+import { Upload, Link, FileSpreadsheet, Loader2, Settings, Home, Copy } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,12 +10,14 @@ import { useDispatch } from "@/contexts/DispatchContext";
 import { useNavigate } from "react-router-dom";
 import { CampaignSelector } from "@/components/CampaignSelector";
 import { useUserSettings } from "@/hooks/useUserSettings";
+import { useSystemSettings } from "@/hooks/useSystemSettings";
 
 export const ImportSection = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [sheetUrl, setSheetUrl] = useState("");
   const { setParsedData, setSheetMeta, currentCampaignId } = useDispatch();
   const { incrementStats } = useUserSettings();
+  const { templateSheetUrl } = useSystemSettings();
   const navigate = useNavigate();
 
   const handleFileUpload = async (file: File) => {
@@ -171,6 +173,55 @@ export const ImportSection = () => {
       </div>
 
       <CampaignSelector />
+
+      {/* Template Card - Only show if template is configured */}
+      {templateSheetUrl && (
+        <Card className="mb-6 border-2 border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-primary" />
+              Template Disponível
+            </CardTitle>
+            <CardDescription>
+              Use nosso modelo pronto para organizar seus contatos
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  window.open(templateSheetUrl, '_blank');
+                  toast({
+                    title: 'Template aberto',
+                    description: 'Faça uma cópia do template para sua conta Google',
+                  });
+                }}
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Copiar Template
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  navigator.clipboard.writeText(templateSheetUrl);
+                  toast({
+                    title: 'Link copiado!',
+                    description: 'O link do template foi copiado para a área de transferência',
+                  });
+                }}
+              >
+                <Link className="mr-2 h-4 w-4" />
+                Copiar Link
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              💡 Abra o template, faça uma cópia (Arquivo → Fazer uma cópia), preencha seus dados e depois importe aqui.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         <Card>

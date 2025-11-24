@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { validateWebhookUrl } from '@/utils/validation';
 import { testWebhook } from '@/utils/webhook';
 import { DailyLimitIndicator } from '@/components/DailyLimitIndicator';
+import { useSystemSettings } from '@/hooks/useSystemSettings';
 
 const DEFAULT_WEBHOOK_URL = 'https://n8n.converthub.com.br/webhook/disparos-precatorizei';
 
@@ -24,6 +25,7 @@ export const SettingsSection = () => {
   const { settings, updateWebhookUrl } = useUserSettings();
   const { batches } = useBatches();
   const { isAdmin } = useAuth();
+  const { templateSheetUrl, loading: loadingTemplate, updateTemplateUrl } = useSystemSettings();
   
   const [inputUrl, setInputUrl] = useState(settings?.webhook_url || DEFAULT_WEBHOOK_URL);
   const [isTesting, setIsTesting] = useState(false);
@@ -33,6 +35,9 @@ export const SettingsSection = () => {
     error?: string;
   } | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  
+  const [templateUrlInput, setTemplateUrlInput] = useState(templateSheetUrl);
+  const [hasTemplateChanges, setHasTemplateChanges] = useState(false);
 
   useEffect(() => {
     if (settings?.webhook_url) {
@@ -43,6 +48,14 @@ export const SettingsSection = () => {
   useEffect(() => {
     setHasChanges(inputUrl !== (settings?.webhook_url || DEFAULT_WEBHOOK_URL));
   }, [inputUrl, settings]);
+
+  useEffect(() => {
+    setTemplateUrlInput(templateSheetUrl);
+  }, [templateSheetUrl]);
+
+  useEffect(() => {
+    setHasTemplateChanges(templateUrlInput !== templateSheetUrl);
+  }, [templateUrlInput, templateSheetUrl]);
 
   const handleTest = async () => {
     const validation = validateWebhookUrl(inputUrl);
@@ -110,6 +123,25 @@ export const SettingsSection = () => {
 
   const isUsingDefault = inputUrl === DEFAULT_WEBHOOK_URL;
 
+  const isValidGoogleSheetsUrl = (url: string) => {
+    if (!url) return true; // Empty is valid (optional)
+    return url.includes('docs.google.com/spreadsheets');
+  };
+
+  const handleSaveTemplate = async () => {
+    if (templateUrlInput && !isValidGoogleSheetsUrl(templateUrlInput)) {
+      toast({
+        title: 'URL inválida',
+        description: 'Insira uma URL válida do Google Sheets',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    await updateTemplateUrl(templateUrlInput);
+    setHasTemplateChanges(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -135,6 +167,74 @@ export const SettingsSection = () => {
 
         {/* Daily Limit Indicator */}
         <DailyLimitIndicator />
+
+        {/* Template Configuration Card - Admin Only */}
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Template de Importação</CardTitle>
+              <CardDescription>
+                Configure o link do Google Sheets que será usado como template pelos usuários
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="template-url">URL do Google Sheets (template)</Label>
+                <Input
+                  id="template-url"
+                  type="url"
+                  value={templateUrlInput}
+                  onChange={(e) => setTemplateUrlInput(e.target.value)}
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  className="font-mono text-sm"
+                  disabled={loadingTemplate}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Insira o link do Google Sheets que servirá como modelo. Os usuários poderão copiar este template.
+                </p>
+              </div>
+
+              {templateUrlInput && !isValidGoogleSheetsUrl(templateUrlInput) && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    A URL deve ser um link válido do Google Sheets
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleSaveTemplate}
+                  disabled={!hasTemplateChanges || loadingTemplate || (!!templateUrlInput && !isValidGoogleSheetsUrl(templateUrlInput))}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvar Template
+                </Button>
+
+                {templateSheetUrl && (
+                  <Button
+                    variant="outline"
+                    onClick={() => window.open(templateSheetUrl, '_blank')}
+                  >
+                    Ver Template Atual
+                  </Button>
+                )}
+              </div>
+
+              {templateSheetUrl && (
+                <div className="pt-4 border-t">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">Template ativo:</span>
+                    <code className="px-2 py-1 bg-muted rounded text-xs break-all">
+                      {templateSheetUrl}
+                    </code>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Webhook Configuration Card */}
         <Card>
