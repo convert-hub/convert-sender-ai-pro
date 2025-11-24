@@ -6,10 +6,22 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Shield, ShieldOff, Loader2, Check, X, Clock, Ban, Settings } from 'lucide-react';
+import { Shield, ShieldOff, Loader2, Check, X, Clock, Ban, Settings, Trash2, AlertTriangle, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
 
 type AccountStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 
@@ -48,6 +60,8 @@ const UsersManagement = () => {
   const [newWebhookUrl, setNewWebhookUrl] = useState('');
   const [editingLimit, setEditingLimit] = useState<{userId: string, currentLimit: number, userName: string} | null>(null);
   const [newLimit, setNewLimit] = useState<number>(50);
+  const [deletingUser, setDeletingUser] = useState<{userId: string, userName: string, email: string} | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -103,6 +117,12 @@ const UsersManagement = () => {
 
   useEffect(() => {
     fetchUsers();
+    
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
+    };
+    getCurrentUser();
   }, []);
 
   const handlePromoteToAdmin = async (userId: string) => {
@@ -216,6 +236,54 @@ const UsersManagement = () => {
     } catch (error: any) {
       console.error('Error updating webhook:', error);
       toast.error(error.message || 'Erro ao atualizar webhook');
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!deletingUser) return;
+
+    setProcessingUserId(userId);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('Não autenticado');
+      }
+
+      // Call Edge Function to delete user
+      const response = await fetch(
+        `https://gdcnyznabtjplewtdylp.supabase.co/functions/v1/delete-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ userId }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erro ao excluir usuário');
+      }
+
+      // Update local state
+      setUsers(prev => prev.filter(u => u.id !== userId));
+
+      toast.success('Conta excluída com sucesso', {
+        description: `A conta de ${deletingUser.userName || deletingUser.email} foi permanentemente removida.`,
+      });
+
+      setDeletingUser(null);
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      toast.error('Erro ao excluir conta', {
+        description: error.message || 'Ocorreu um erro ao tentar excluir a conta',
+      });
+    } finally {
+      setProcessingUserId(null);
     }
   };
 
@@ -466,6 +534,28 @@ const UsersManagement = () => {
                             </Button>
                           )
                         )}
+
+                        {/* Delete Account Button */}
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setDeletingUser({
+                            userId: user.id,
+                            userName: user.full_name || 'Usuário',
+                            email: user.email
+                          })}
+                          disabled={processingUserId === user.id || user.id === currentUserId}
+                          className="opacity-70 hover:opacity-100"
+                        >
+                          {processingUserId === user.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Excluir Conta
+                            </>
+                          )}
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -555,6 +645,75 @@ const UsersManagement = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingUser} onOpenChange={() => setDeletingUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-950">
+              <AlertTriangle className="h-10 w-10 text-red-600" />
+            </div>
+            <AlertDialogTitle className="text-center text-xl">
+              ⚠️ Excluir Conta Permanentemente?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center space-y-4">
+              <p className="font-semibold text-lg text-foreground">
+                {deletingUser?.userName || 'Usuário desconhecido'}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {deletingUser?.email}
+              </p>
+              
+              <Separator className="my-4" />
+              
+              <Alert variant="destructive" className="text-left">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Esta ação é irreversível!</AlertTitle>
+                <AlertDescription className="mt-2 space-y-2">
+                  <p>Os seguintes dados serão <strong>permanentemente excluídos</strong>:</p>
+                  <ul className="list-disc list-inside text-xs space-y-1 ml-2">
+                    <li>Perfil e informações pessoais</li>
+                    <li>Todas as campanhas criadas</li>
+                    <li>Todos os blocos de contatos</li>
+                    <li>Histórico de disparos</li>
+                    <li>Configurações e estatísticas</li>
+                    <li>Permissões e roles</li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
+
+              <p className="text-sm font-medium text-muted-foreground">
+                Tem certeza que deseja continuar?
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center gap-2">
+            <AlertDialogCancel 
+              onClick={() => setDeletingUser(null)}
+              disabled={processingUserId === deletingUser?.userId}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingUser && handleDeleteUser(deletingUser.userId)}
+              disabled={processingUserId === deletingUser?.userId}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {processingUserId === deletingUser?.userId ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Sim, Excluir Permanentemente
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
