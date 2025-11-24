@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, Link, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Upload, Link, FileSpreadsheet, Loader2, Copy } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { parseCSV, parseXLSX, parseGoogleSheetsURL } from '@/utils/parsers';
 import { generateExampleData } from '@/utils/exampleData';
 import { useDispatch } from '@/contexts/DispatchContext';
 import { useUserSettings } from '@/hooks/useUserSettings';
+import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { useNavigate } from 'react-router-dom';
 import { CampaignSelector } from './CampaignSelector';
 
@@ -18,6 +19,7 @@ export const QuickActions = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { setParsedData, setSheetMeta, currentCampaignId } = useDispatch();
   const { incrementStats } = useUserSettings();
+  const { templateSheetUrl } = useSystemSettings();
   const navigate = useNavigate();
 
   const handleFileUpload = async (file: File) => {
@@ -166,6 +168,63 @@ export const QuickActions = () => {
           <span className="text-2xl">⚡</span>
           Ações Rápidas
         </h2>
+
+        {/* Template Card - Conditional Highlight */}
+        {templateSheetUrl && (
+          <Card className="border-green-500/30 bg-gradient-to-br from-green-50/50 to-emerald-50/30 dark:from-green-950/20 dark:to-emerald-950/10 hover:border-green-500/50 hover:shadow-lg transition-all duration-300">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/10 flex items-center justify-center shrink-0">
+                    <FileSpreadsheet className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      📋 Template Disponível
+                    </CardTitle>
+                    <CardDescription>
+                      Use nosso modelo pronto para organizar seus contatos
+                    </CardDescription>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
+                  <Button
+                    variant="outline"
+                    className="border-green-500/50 hover:bg-green-50 dark:hover:bg-green-950/30"
+                    onClick={() => {
+                      window.open(templateSheetUrl, '_blank');
+                      toast({
+                        title: 'Template aberto',
+                        description: 'Faça uma cópia do template para sua conta Google',
+                      });
+                    }}
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copiar Template
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(templateSheetUrl);
+                      toast({
+                        title: 'Link copiado!',
+                        description: 'O link do template foi copiado para a área de transferência',
+                      });
+                    }}
+                  >
+                    <Link className="mr-2 h-4 w-4" />
+                    Copiar Link
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                💡 Dica: Abra o template, faça uma cópia (Arquivo → Fazer uma cópia), preencha seus dados e depois importe aqui usando qualquer um dos métodos abaixo.
+              </p>
+            </CardContent>
+          </Card>
+        )}
       
       <div className="grid md:grid-cols-3 gap-4">
         {/* Upload Card */}
