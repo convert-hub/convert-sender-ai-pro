@@ -11,6 +11,15 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
 import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
+import { 
   Send, 
   Grid3x3, 
   Users, 
@@ -39,6 +48,18 @@ export const BatchesSection = () => {
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [selectedBatchNumber, setSelectedBatchNumber] = useState<number | null>(null);
   const [selectedBatchContactsCount, setSelectedBatchContactsCount] = useState<number>(0);
+  
+  // Estados para controlar o popup de sucesso
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [successBatchInfo, setSuccessBatchInfo] = useState<{
+    blockNumber: number;
+    contactsCount: number;
+    remaining: number;
+    limit: number;
+  } | null>(null);
+
+  // Estado para prevenir cliques múltiplos
+  const [sendingBatchIds, setSendingBatchIds] = useState<Set<number>>(new Set());
   
   // Hook para verificar e enviar batches agendados
   useScheduledBatches();
@@ -86,65 +107,91 @@ export const BatchesSection = () => {
   }
 
   const handleSendBatch = async (batch: BatchInfo) => {
-    // Check daily limit before sending
-    const limitCheck = await checkDailyLimit(batch.contacts.length);
-    
-    if (!limitCheck.allowed) {
+    // Proteção: Verificar se o batch já está sendo enviado
+    if (sendingBatchIds.has(batch.block_number)) {
       toast({
-        title: 'Limite diário atingido',
-        description: `Você já enviou ${limitCheck.used_today} de ${limitCheck.limit} disparos permitidos hoje. Restam ${limitCheck.remaining} envios.`,
-        variant: 'destructive',
+        title: 'Aguarde',
+        description: 'Este bloco já está sendo enviado. Por favor, aguarde.',
+        variant: 'default',
       });
       return;
     }
 
-    const campaign = campaigns.find(c => c.id === batch.campaign_id);
-    if (!campaign) {
-      toast({
-        title: 'Erro',
-        description: batch.campaign_id
-          ? 'Campanha não encontrada. Ela pode ter sido deletada.'
-          : 'Batch sem campanha associada. Por favor, importe novamente.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    // Proteção: Adicionar ao Set de batches sendo enviados
+    setSendingBatchIds(prev => new Set(prev).add(batch.block_number));
 
-    await updateBatch(batch.block_number, { status: 'sending' });
+    try {
+      // Check daily limit before sending
+      const limitCheck = await checkDailyLimit(batch.contacts.length);
+      
+      if (!limitCheck.allowed) {
+        toast({
+          title: 'Limite diário atingido',
+          description: `Você já enviou ${limitCheck.used_today} de ${limitCheck.limit} disparos permitidos hoje. Restam ${limitCheck.remaining} envios.`,
+          variant: 'destructive',
+        });
+        return;
+      }
 
-    const result = await sendToWebhook(batch, columnMapping, sheetMeta, campaign, settings?.webhook_url || '');
+      const campaign = campaigns.find(c => c.id === batch.campaign_id);
+      if (!campaign) {
+        toast({
+          title: 'Erro',
+          description: batch.campaign_id
+            ? 'Campanha não encontrada. Ela pode ter sido deletada.'
+            : 'Batch sem campanha associada. Por favor, importe novamente.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
-    if (result.success) {
-      await updateBatch(batch.block_number, { status: 'sent' });
+      await updateBatch(batch.block_number, { status: 'sending' });
 
-      await addHistoryItem({
-        block_number: batch.block_number,
-        contacts_count: batch.contacts.length,
-        status: 'success',
-        response_status: result.status,
-      });
+      const result = await sendToWebhook(batch, columnMapping, sheetMeta, campaign, settings?.webhook_url || '');
 
-      await incrementStats('batches_sent', 1);
+      if (result.success) {
+        await updateBatch(batch.block_number, { status: 'sent' });
 
-      toast({
-        title: 'Disparo enviado!',
-        description: `Bloco #${batch.block_number} enviado com sucesso. Restam ${limitCheck.remaining} envios hoje de ${limitCheck.limit} permitidos.`,
-      });
-    } else {
-      await updateBatch(batch.block_number, { status: 'error' });
+        await addHistoryItem({
+          block_number: batch.block_number,
+          contacts_count: batch.contacts.length,
+          status: 'success',
+          response_status: result.status,
+        });
 
-      await addHistoryItem({
-        block_number: batch.block_number,
-        contacts_count: batch.contacts.length,
-        status: 'error',
-        response_status: result.status,
-        error_message: result.error,
-      });
+        await incrementStats('batches_sent', 1);
 
-      toast({
-        title: 'Erro no envio',
-        description: result.error || 'Falha ao enviar disparo',
-        variant: 'destructive',
+        // Abrir popup de sucesso ao invés de toast
+        setSuccessBatchInfo({
+          blockNumber: batch.block_number,
+          contactsCount: batch.contacts.length,
+          remaining: limitCheck.remaining,
+          limit: limitCheck.limit,
+        });
+        setSuccessDialogOpen(true);
+      } else {
+        await updateBatch(batch.block_number, { status: 'error' });
+
+        await addHistoryItem({
+          block_number: batch.block_number,
+          contacts_count: batch.contacts.length,
+          status: 'error',
+          response_status: result.status,
+          error_message: result.error,
+        });
+
+        toast({
+          title: 'Erro no envio',
+          description: result.error || 'Falha ao enviar disparo',
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      // Proteção: Sempre remover do Set ao finalizar (sucesso ou erro)
+      setSendingBatchIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(batch.block_number);
+        return newSet;
       });
     }
   };
@@ -314,21 +361,30 @@ export const BatchesSection = () => {
                       </Button>
                       <Button
                         onClick={() => handleSendBatch(batch)}
-                        className="flex-1"
+                        disabled={sendingBatchIds.has(batch.block_number)}
+                        className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
                       >
                         <Send className="mr-2 h-4 w-4" />
-                        Enviar Agora
+                        {sendingBatchIds.has(batch.block_number) ? 'Enviando...' : 'Enviar Agora'}
                       </Button>
                     </>
                   ) : (
                     <>
                       <Button
                         onClick={() => handleSendBatch(batch)}
-                        disabled={batch.status === 'sending' || batch.status === 'sent'}
-                        className="flex-1"
+                        disabled={
+                          batch.status === 'sending' || 
+                          batch.status === 'sent' || 
+                          sendingBatchIds.has(batch.block_number)
+                        }
+                        className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Send className="mr-2 h-4 w-4" />
-                        {batch.status === 'sent' ? 'Enviado' : batch.status === 'sending' ? 'Enviando...' : 'Enviar'}
+                        {batch.status === 'sent' 
+                          ? 'Enviado' 
+                          : (batch.status === 'sending' || sendingBatchIds.has(batch.block_number))
+                            ? 'Enviando...' 
+                            : 'Enviar'}
                       </Button>
                       {batch.status === 'ready' && (
                         <Button
@@ -347,6 +403,61 @@ export const BatchesSection = () => {
           ))}
         </div>
       </div>
+
+      {/* Success Dialog */}
+      <AlertDialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <div className="relative mx-auto mb-4">
+              {/* Animação de pulso ao fundo */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="animate-ping h-20 w-20 rounded-full bg-green-500/30"></div>
+              </div>
+              {/* Ícone principal */}
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+                <CheckCircle2 className="h-10 w-10 text-green-600" />
+              </div>
+            </div>
+            <AlertDialogTitle className="text-center text-2xl font-bold">
+              🚀 Disparo Iniciado!
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center space-y-4 pt-2">
+              <p className="text-lg font-semibold text-foreground">
+                Bloco #{successBatchInfo?.blockNumber} enviado com sucesso
+              </p>
+              <Separator />
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="text-left space-y-1">
+                  <p className="text-muted-foreground">Contatos enviados</p>
+                  <p className="font-bold text-2xl text-green-600">
+                    {successBatchInfo?.contactsCount}
+                  </p>
+                </div>
+                <div className="text-left space-y-1">
+                  <p className="text-muted-foreground">Restantes hoje</p>
+                  <p className="font-bold text-2xl text-blue-600">
+                    {successBatchInfo?.remaining}
+                  </p>
+                </div>
+              </div>
+              <Alert className="border-green-500/50 bg-green-50/50 dark:bg-green-950/20">
+                <AlertCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-sm text-muted-foreground">
+                  Os disparos estão sendo processados. Você pode acompanhar o progresso no histórico.
+                </AlertDescription>
+              </Alert>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center">
+            <AlertDialogAction 
+              onClick={() => setSuccessDialogOpen(false)}
+              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-8 font-semibold"
+            >
+              Entendi
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <ScheduleBatchDialog
         open={scheduleDialogOpen}
