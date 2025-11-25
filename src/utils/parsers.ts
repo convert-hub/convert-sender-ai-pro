@@ -69,23 +69,25 @@ export const parseXLSX = (file: File): Promise<ParsedData> => {
 
 export const parseGoogleSheetsURL = async (url: string): Promise<ParsedData> => {
   try {
-    // Try to convert to export URL if it's a regular Google Sheets URL
-    let exportUrl = url;
+    let exportUrl = url.trim();
     
-    if (url.includes('/edit')) {
-      const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
-      if (match) {
-        const sheetId = match[1];
-        exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
-      }
-    } else if (!url.includes('/export')) {
-      throw new Error('URL inválida. Use o link de export CSV do Google Sheets.');
+    // Extrair ID da planilha de qualquer formato de URL do Google Sheets
+    const sheetIdMatch = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+    
+    if (sheetIdMatch) {
+      const sheetId = sheetIdMatch[1];
+      exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+    } else if (!url.includes('export?format=csv')) {
+      throw new Error('URL inválida. Cole o link de compartilhamento da planilha do Google Sheets.');
     }
     
     const response = await fetch(exportUrl);
     
     if (!response.ok) {
-      throw new Error('Não foi possível baixar a planilha. Verifique se ela está pública.');
+      if (response.status === 403 || response.status === 401) {
+        throw new Error('Planilha não está pública. Vá em "Compartilhar" → "Qualquer pessoa com o link" → "Leitor"');
+      }
+      throw new Error(`Erro ao acessar planilha (código ${response.status}). Verifique se a planilha está pública.`);
     }
     
     const csvText = await response.text();
@@ -111,6 +113,9 @@ export const parseGoogleSheetsURL = async (url: string): Promise<ParsedData> => 
       });
     });
   } catch (error) {
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      throw new Error('Não foi possível acessar a planilha. Verifique se a URL está correta e se a planilha está configurada como pública.');
+    }
     throw new Error(error instanceof Error ? error.message : 'Erro ao processar URL');
   }
 };

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, ArrowLeft } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -33,10 +33,22 @@ export const MappingSection = () => {
   const [phoneCol, setPhoneCol] = useState('');
   const [extraCols, setExtraCols] = useState<string[]>([]);
   const [batchSize, setBatchSize] = useState(50);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  // Redirect if no data (com delay para evitar race condition)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!parsedData) {
+        navigate('/');
+      }
+      setIsInitializing(false);
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [parsedData, navigate]);
 
   useEffect(() => {
     if (!parsedData) {
-      navigate('/');
       return;
     }
 
@@ -113,6 +125,15 @@ export const MappingSection = () => {
       console.error('Error saving batches:', error);
     }
   };
+
+  // Loading state durante inicialização
+  if (isInitializing) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!parsedData) return null;
 
