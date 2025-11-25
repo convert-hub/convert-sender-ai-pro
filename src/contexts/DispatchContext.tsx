@@ -22,17 +22,46 @@ const DispatchContext = createContext<DispatchContextType | undefined>(undefined
 
 const STORAGE_KEYS = {
   CURRENT_CAMPAIGN_ID: 'current_campaign_id',
+  PARSED_DATA: 'session_parsed_data',
+  SHEET_META: 'session_sheet_meta',
 };
 
 export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Temporary session data
-  const [parsedData, setParsedData] = useState<ParsedData | null>(null);
-  const [sheetMeta, setSheetMeta] = useState<SheetMeta | null>(null);
+  // Temporary session data com persistência em sessionStorage
+  const [parsedData, setParsedDataInternal] = useState<ParsedData | null>(() => {
+    const saved = sessionStorage.getItem(STORAGE_KEYS.PARSED_DATA);
+    return saved ? JSON.parse(saved) : null;
+  });
+  
+  const [sheetMeta, setSheetMetaInternal] = useState<SheetMeta | null>(() => {
+    const saved = sessionStorage.getItem(STORAGE_KEYS.SHEET_META);
+    return saved ? JSON.parse(saved) : null;
+  });
+  
   const [columnMapping, setColumnMapping] = useState<ColumnMapping | null>(null);
   const [currentCampaignId, setCurrentCampaignId] = useState<string | null>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_CAMPAIGN_ID);
     return saved || null;
   });
+
+  // Wrappers para persistir dados no sessionStorage
+  const setParsedData = (data: ParsedData | null) => {
+    if (data) {
+      sessionStorage.setItem(STORAGE_KEYS.PARSED_DATA, JSON.stringify(data));
+    } else {
+      sessionStorage.removeItem(STORAGE_KEYS.PARSED_DATA);
+    }
+    setParsedDataInternal(data);
+  };
+
+  const setSheetMeta = (meta: SheetMeta | null) => {
+    if (meta) {
+      sessionStorage.setItem(STORAGE_KEYS.SHEET_META, JSON.stringify(meta));
+    } else {
+      sessionStorage.removeItem(STORAGE_KEYS.SHEET_META);
+    }
+    setSheetMetaInternal(meta);
+  };
 
   // Persist current campaign ID
   useEffect(() => {
@@ -47,6 +76,8 @@ export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setParsedData(null);
     setSheetMeta(null);
     setColumnMapping(null);
+    sessionStorage.removeItem(STORAGE_KEYS.PARSED_DATA);
+    sessionStorage.removeItem(STORAGE_KEYS.SHEET_META);
   };
 
   return (
