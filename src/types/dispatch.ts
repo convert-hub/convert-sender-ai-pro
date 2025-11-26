@@ -53,6 +53,7 @@ export interface CampaignTemplate {
 }
 
 export interface BatchInfo {
+  id: string;
   block_number: number;
   block_size: number;
   range: {
