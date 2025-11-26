@@ -158,7 +158,8 @@ const Auth = () => {
             <img src={logo} alt="Convert Sender" className="h-12" />
           </div>
           
-          <p className="text-muted-foreground mt-2">Sistema de Disparo em Massa</p>
+          <p className="text-muted-foreground mt-2">Seus disparos feitos
+de forma inteligente </p>
         </div>
 
         <Tabs defaultValue="login" className="w-full">
