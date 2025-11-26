@@ -64,7 +64,7 @@ export const BatchesSection = () => {
   const [sendingBatchIds, setSendingBatchIds] = useState<Set<number>>(new Set());
   
   // Estado para controlar diálogo de exclusão
-  const [deletingBatch, setDeletingBatch] = useState<number | null>(null);
+  const [deletingBatch, setDeletingBatch] = useState<string | null>(null);
   
   // Hook para verificar e enviar batches agendados
   useScheduledBatches();
@@ -150,12 +150,12 @@ export const BatchesSection = () => {
         return;
       }
 
-      await updateBatch(batch.block_number, { status: 'sending' });
+      await updateBatch(batch.id, { status: 'sending' });
 
       const result = await sendToWebhook(batch, columnMapping, sheetMeta, campaign, settings?.webhook_url || '');
 
       if (result.success) {
-        await updateBatch(batch.block_number, { status: 'sent' });
+        await updateBatch(batch.id, { status: 'sent' });
 
         await addHistoryItem({
           block_number: batch.block_number,
@@ -175,7 +175,7 @@ export const BatchesSection = () => {
         });
         setSuccessDialogOpen(true);
       } else {
-        await updateBatch(batch.block_number, { status: 'error' });
+        await updateBatch(batch.id, { status: 'error' });
 
         await addHistoryItem({
           block_number: batch.block_number,
@@ -211,7 +211,10 @@ export const BatchesSection = () => {
   const handleConfirmSchedule = async (scheduledAt: string) => {
     if (selectedBatchNumber === null) return;
 
-    await updateBatch(selectedBatchNumber, {
+    const batch = batches.find(b => b.block_number === selectedBatchNumber);
+    if (!batch) return;
+
+    await updateBatch(batch.id, {
       status: 'scheduled',
       scheduled_at: scheduledAt,
     });
@@ -225,7 +228,10 @@ export const BatchesSection = () => {
   };
 
   const handleCancelSchedule = async (batchNumber: number) => {
-    await updateBatch(batchNumber, {
+    const batch = batches.find(b => b.block_number === batchNumber);
+    if (!batch) return;
+
+    await updateBatch(batch.id, {
       status: 'ready',
       scheduled_at: null,
     });
@@ -236,12 +242,13 @@ export const BatchesSection = () => {
     });
   };
 
-  const handleDeleteBatch = async (blockNumber: number) => {
+  const handleDeleteBatch = async (id: string) => {
     try {
-      await deleteBatch(blockNumber);
+      await deleteBatch(id);
+      const batch = batches.find(b => b.id === id);
       toast({
         title: 'Bloco excluído',
-        description: `Bloco #${blockNumber} foi removido com sucesso`,
+        description: `Bloco #${batch?.block_number} foi removido com sucesso`,
       });
       setDeletingBatch(null);
     } catch (error) {
@@ -330,7 +337,7 @@ export const BatchesSection = () => {
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {batches.map(batch => (
-            <Card key={batch.block_number} className="hover:shadow-lg transition-shadow">
+            <Card key={batch.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl flex items-center gap-2">
@@ -376,7 +383,7 @@ export const BatchesSection = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setDeletingBatch(batch.block_number)}
+                      onClick={() => setDeletingBatch(batch.id)}
                       className="text-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -506,7 +513,7 @@ export const BatchesSection = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o Bloco #{deletingBatch}? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir este bloco? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

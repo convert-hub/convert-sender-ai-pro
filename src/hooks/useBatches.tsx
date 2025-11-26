@@ -27,6 +27,7 @@ export const useBatches = () => {
 
         // Transform database format to BatchInfo format
         const transformedBatches = (data || []).map((batch) => ({
+          id: batch.id,
           block_number: batch.block_number,
           block_size: batch.block_size,
           range: {
@@ -65,6 +66,7 @@ export const useBatches = () => {
         (payload) => {
           if (payload.eventType === 'INSERT') {
             const newBatch = {
+              id: payload.new.id,
               block_number: payload.new.block_number,
               block_size: payload.new.block_size,
               range: {
@@ -80,6 +82,7 @@ export const useBatches = () => {
             setBatches((prev) => [newBatch, ...prev]);
           } else if (payload.eventType === 'UPDATE') {
             const updatedBatch = {
+              id: payload.new.id,
               block_number: payload.new.block_number,
               block_size: payload.new.block_size,
               range: {
@@ -94,11 +97,11 @@ export const useBatches = () => {
             };
             setBatches((prev) =>
               prev.map((b) =>
-                b.block_number === payload.new.block_number ? updatedBatch : b
+                b.id === payload.new.id ? updatedBatch : b
               )
             );
           } else if (payload.eventType === 'DELETE') {
-            setBatches((prev) => prev.filter((b) => b.block_number !== payload.old.block_number));
+            setBatches((prev) => prev.filter((b) => b.id !== payload.old.id));
           }
         }
       )
@@ -140,7 +143,7 @@ export const useBatches = () => {
     }
   };
 
-  const updateBatch = async (blockNumber: number, updates: Partial<BatchInfo>) => {
+  const updateBatch = async (id: string, updates: Partial<BatchInfo>) => {
     if (!user) return;
 
     try {
@@ -151,7 +154,7 @@ export const useBatches = () => {
       const { error } = await supabase
         .from('batches')
         .update(updateData)
-        .eq('block_number', blockNumber)
+        .eq('id', id)
         .eq('user_id', user.id);
 
       if (error) throw error;
@@ -164,17 +167,20 @@ export const useBatches = () => {
     }
   };
 
-  const deleteBatch = async (blockNumber: number) => {
+  const deleteBatch = async (id: string) => {
     if (!user) return;
 
     try {
       const { error } = await supabase
         .from('batches')
         .delete()
-        .eq('block_number', blockNumber)
+        .eq('id', id)
         .eq('user_id', user.id);
 
       if (error) throw error;
+
+      // Manual state update
+      setBatches((prev) => prev.filter((b) => b.id !== id));
 
       toast.success('Lote excluído');
     } catch (error) {

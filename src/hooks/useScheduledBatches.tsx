@@ -27,7 +27,7 @@ export const useScheduledBatches = () => {
         const scheduledTime = new Date(batch.scheduled_at!);
         
         if (now >= scheduledTime) {
-          await updateBatch(batch.block_number, { status: 'sending' });
+          await updateBatch(batch.id, { status: 'sending' });
 
           try {
             // Check daily limit before sending
@@ -55,7 +55,7 @@ export const useScheduledBatches = () => {
             );
 
             if (response.success) {
-              await updateBatch(batch.block_number, { status: 'sent' });
+              await updateBatch(batch.id, { status: 'sent' });
               await addHistoryItem({
                 block_number: batch.block_number,
                 contacts_count: batch.contacts.length,
@@ -72,7 +72,7 @@ export const useScheduledBatches = () => {
               throw new Error(response.error || 'Erro ao enviar');
             }
           } catch (error) {
-            await updateBatch(batch.block_number, { status: 'error' });
+            await updateBatch(batch.id, { status: 'error' });
             await addHistoryItem({
               block_number: batch.block_number,
               contacts_count: batch.contacts.length,
