@@ -135,6 +135,9 @@ export const useCampaigns = () => {
 
       if (error) throw error;
 
+      // Atualizar estado local imediatamente
+      setCampaigns((prev) => prev.filter((c) => c.id !== id));
+
       toast.success('Campanha excluída');
     } catch (error) {
       console.error('Error deleting campaign:', error);

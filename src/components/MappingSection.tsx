@@ -84,6 +84,15 @@ export const MappingSection = () => {
   const handleGenerateBatches = async () => {
     if (!parsedData) return;
 
+    if (!currentCampaignId) {
+      toast({
+        title: 'Selecione uma campanha',
+        description: 'É necessário selecionar uma campanha antes de gerar os blocos',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const actualEmailCol = emailCol === 'none' ? '' : emailCol;
     const actualPhoneCol = phoneCol === 'none' ? '' : phoneCol;
 
@@ -339,7 +348,10 @@ export const MappingSection = () => {
         <Button
           size="lg"
           onClick={handleGenerateBatches}
-          disabled={(!emailCol || emailCol === 'none') && (!phoneCol || phoneCol === 'none')}
+          disabled={
+            !currentCampaignId ||
+            ((!emailCol || emailCol === 'none') && (!phoneCol || phoneCol === 'none'))
+          }
         >
           Gerar Blocos de {batchSize}
           <ArrowRight className="ml-2 h-4 w-4" />

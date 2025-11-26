@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { z } from 'zod';
+import logo from "@/assets/logo.png";
 
 const loginSchema = z.object({
   email: z.string().trim().email({ message: 'Email inválido' }),
@@ -145,10 +146,10 @@ const Auth = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Send className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">Convert Sender</h1>
+            <img src={logo} alt="Convert Sender" className="h-12" />
           </div>
-          <p className="text-muted-foreground">Sistema de Disparo em Massa</p>
+          <h1 className="text-3xl font-bold">Convert Sender</h1>
+          <p className="text-muted-foreground mt-2">Sistema de Disparo em Massa</p>
         </div>
 
         <Tabs defaultValue="login" className="w-full">
