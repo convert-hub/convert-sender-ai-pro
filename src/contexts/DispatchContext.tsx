@@ -24,6 +24,7 @@ const STORAGE_KEYS = {
   CURRENT_CAMPAIGN_ID: 'current_campaign_id',
   PARSED_DATA: 'session_parsed_data',
   SHEET_META: 'session_sheet_meta',
+  COLUMN_MAPPING: 'session_column_mapping',
 };
 
 export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -38,7 +39,10 @@ export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return saved ? JSON.parse(saved) : null;
   });
   
-  const [columnMapping, setColumnMapping] = useState<ColumnMapping | null>(null);
+  const [columnMapping, setColumnMappingInternal] = useState<ColumnMapping | null>(() => {
+    const saved = sessionStorage.getItem(STORAGE_KEYS.COLUMN_MAPPING);
+    return saved ? JSON.parse(saved) : null;
+  });
   const [currentCampaignId, setCurrentCampaignId] = useState<string | null>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_CAMPAIGN_ID);
     return saved || null;
@@ -63,6 +67,15 @@ export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSheetMetaInternal(meta);
   };
 
+  const setColumnMapping = (mapping: ColumnMapping | null) => {
+    if (mapping) {
+      sessionStorage.setItem(STORAGE_KEYS.COLUMN_MAPPING, JSON.stringify(mapping));
+    } else {
+      sessionStorage.removeItem(STORAGE_KEYS.COLUMN_MAPPING);
+    }
+    setColumnMappingInternal(mapping);
+  };
+
   // Persist current campaign ID
   useEffect(() => {
     if (currentCampaignId) {
@@ -78,6 +91,7 @@ export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setColumnMapping(null);
     sessionStorage.removeItem(STORAGE_KEYS.PARSED_DATA);
     sessionStorage.removeItem(STORAGE_KEYS.SHEET_META);
+    sessionStorage.removeItem(STORAGE_KEYS.COLUMN_MAPPING);
   };
 
   return (
