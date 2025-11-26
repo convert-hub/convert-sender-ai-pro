@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { 
   AlertDialog,
   AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -28,7 +29,8 @@ import {
   Clock,
   XCircle,
   Home,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Trash2
 } from 'lucide-react';
 import { sendToWebhook } from '@/utils/webhook';
 import { toast } from '@/hooks/use-toast';
@@ -40,7 +42,7 @@ import { BatchInfo } from '@/types/dispatch';
 
 export const BatchesSection = () => {
   const { columnMapping, sheetMeta } = useDispatch();
-  const { batches, updateBatch } = useBatches();
+  const { batches, updateBatch, deleteBatch } = useBatches();
   const { addHistoryItem } = useHistory();
   const { settings, incrementStats, checkDailyLimit } = useUserSettings();
   const { campaigns } = useCampaigns();
@@ -60,6 +62,9 @@ export const BatchesSection = () => {
 
   // Estado para prevenir cliques múltiplos
   const [sendingBatchIds, setSendingBatchIds] = useState<Set<number>>(new Set());
+  
+  // Estado para controlar diálogo de exclusão
+  const [deletingBatch, setDeletingBatch] = useState<number | null>(null);
   
   // Hook para verificar e enviar batches agendados
   useScheduledBatches();
@@ -231,6 +236,24 @@ export const BatchesSection = () => {
     });
   };
 
+  const handleDeleteBatch = async (blockNumber: number) => {
+    try {
+      await deleteBatch(blockNumber);
+      toast({
+        title: 'Bloco excluído',
+        description: `Bloco #${blockNumber} foi removido com sucesso`,
+      });
+      setDeletingBatch(null);
+    } catch (error) {
+      console.error('Error deleting batch:', error);
+      toast({
+        title: 'Erro ao excluir',
+        description: 'Não foi possível excluir o bloco',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getStatusIcon = (status: BatchInfo['status']) => {
     switch (status) {
       case 'sent':
@@ -349,6 +372,16 @@ export const BatchesSection = () => {
                 )}
 
                 <div className="mt-4 flex gap-2">
+                  {(batch.status === 'ready' || batch.status === 'error') && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeletingBatch(batch.block_number)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                   {batch.status === 'scheduled' ? (
                     <>
                       <Button
@@ -466,6 +499,27 @@ export const BatchesSection = () => {
         batchNumber={selectedBatchNumber || 0}
         batchContactsCount={selectedBatchContactsCount}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deletingBatch !== null} onOpenChange={(open) => !open && setDeletingBatch(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o Bloco #{deletingBatch}? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => deletingBatch && handleDeleteBatch(deletingBatch)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
