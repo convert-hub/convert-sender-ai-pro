@@ -383,12 +383,13 @@ export const BatchesSection = () => {
                 )}
 
                 <div className="mt-4 flex gap-2">
-                  {(batch.status === 'ready' || batch.status === 'error') && (
+                  {batch.status !== 'sending' && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setDeletingBatch(batch.id)}
                       className="text-destructive hover:text-destructive"
+                      title="Excluir bloco"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
