@@ -216,7 +216,7 @@ export const useUserSettings = () => {
 
     try {
       const { data, error } = await supabase
-        .rpc('check_and_update_daily_limit', {
+        .rpc('check_daily_limit', {
           _user_id: user.id,
           _contacts_to_send: contactsToSend,
         });
@@ -237,6 +237,25 @@ export const useUserSettings = () => {
     }
   };
 
+  const confirmDailyDispatch = async (contactsSent: number): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .rpc('confirm_daily_dispatch', {
+          _user_id: user.id,
+          _contacts_sent: contactsSent,
+        });
+
+      if (error) throw error;
+
+      return true;
+    } catch (error) {
+      console.error('Error confirming daily dispatch:', error);
+      return false;
+    }
+  };
+
   return {
     settings,
     loading,
@@ -244,5 +263,6 @@ export const useUserSettings = () => {
     updateStats,
     incrementStats,
     checkDailyLimit,
+    confirmDailyDispatch,
   };
 };

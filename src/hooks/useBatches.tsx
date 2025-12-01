@@ -39,6 +39,8 @@ export const useBatches = () => {
           scheduled_at: batch.scheduled_at || undefined,
           created_at: batch.created_at,
           campaign_id: batch.campaign_id || '',
+          sheet_meta: batch.sheet_meta as any,
+          column_mapping: batch.column_mapping as any,
         }));
 
         setBatches(transformedBatches);
@@ -78,6 +80,8 @@ export const useBatches = () => {
               scheduled_at: payload.new.scheduled_at || undefined,
               created_at: payload.new.created_at,
               campaign_id: payload.new.campaign_id || '',
+              sheet_meta: payload.new.sheet_meta as any,
+              column_mapping: payload.new.column_mapping as any,
             };
             setBatches((prev) => [newBatch, ...prev]);
           } else if (payload.eventType === 'UPDATE') {
@@ -94,6 +98,8 @@ export const useBatches = () => {
               scheduled_at: payload.new.scheduled_at || undefined,
               created_at: payload.new.created_at,
               campaign_id: payload.new.campaign_id || '',
+              sheet_meta: payload.new.sheet_meta as any,
+              column_mapping: payload.new.column_mapping as any,
             };
             setBatches((prev) =>
               prev.map((b) =>
@@ -128,6 +134,8 @@ export const useBatches = () => {
           scheduled_at: batch.scheduled_at || null,
           campaign_id: batch.campaign_id || null,
           user_id: user.id,
+          sheet_meta: batch.sheet_meta as any,
+          column_mapping: batch.column_mapping as any,
         }])
         .select()
         .single();

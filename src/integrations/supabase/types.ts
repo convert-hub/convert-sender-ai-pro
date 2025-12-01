@@ -19,12 +19,14 @@ export type Database = {
           block_number: number
           block_size: number
           campaign_id: string | null
+          column_mapping: Json | null
           contacts: Json
           created_at: string
           id: string
           range_end: number
           range_start: number
           scheduled_at: string | null
+          sheet_meta: Json | null
           status: string
           user_id: string
         }
@@ -32,12 +34,14 @@ export type Database = {
           block_number: number
           block_size: number
           campaign_id?: string | null
+          column_mapping?: Json | null
           contacts?: Json
           created_at?: string
           id?: string
           range_end: number
           range_start: number
           scheduled_at?: string | null
+          sheet_meta?: Json | null
           status?: string
           user_id: string
         }
@@ -45,12 +49,14 @@ export type Database = {
           block_number?: number
           block_size?: number
           campaign_id?: string | null
+          column_mapping?: Json | null
           contacts?: Json
           created_at?: string
           id?: string
           range_end?: number
           range_start?: number
           scheduled_at?: string | null
+          sheet_meta?: Json | null
           status?: string
           user_id?: string
         }
@@ -340,8 +346,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      check_and_update_daily_limit: {
+      check_daily_limit: {
         Args: { _contacts_to_send: number; _user_id: string }
+        Returns: Json
+      }
+      confirm_daily_dispatch: {
+        Args: { _contacts_sent: number; _user_id: string }
         Returns: Json
       }
       get_user_roles: {
