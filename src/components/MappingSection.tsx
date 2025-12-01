@@ -119,7 +119,11 @@ export const MappingSection = () => {
     // Save batches to Supabase
     try {
       for (const batch of result.batches) {
-        await addBatch(batch);
+        await addBatch({
+          ...batch,
+          sheet_meta: sheetMeta,
+          column_mapping: mapping,
+        });
       }
 
       await updateStats({

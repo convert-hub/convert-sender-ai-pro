@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useDispatch } from '@/contexts/DispatchContext';
 import { useBatches } from '@/hooks/useBatches';
 import { useHistory } from '@/hooks/useHistory';
 import { useUserSettings } from '@/hooks/useUserSettings';
@@ -41,10 +40,9 @@ import { ptBR } from 'date-fns/locale';
 import { BatchInfo } from '@/types/dispatch';
 
 export const BatchesSection = () => {
-  const { columnMapping, sheetMeta } = useDispatch();
   const { batches, updateBatch, deleteBatch } = useBatches();
   const { addHistoryItem } = useHistory();
-  const { settings, incrementStats, checkDailyLimit } = useUserSettings();
+  const { settings, incrementStats, checkDailyLimit, confirmDailyDispatch } = useUserSettings();
   const { campaigns } = useCampaigns();
   const navigate = useNavigate();
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
@@ -90,27 +88,6 @@ export const BatchesSection = () => {
     );
   }
 
-  if (!columnMapping || !sheetMeta) {
-    return (
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <Card>
-          <CardHeader>
-            <CardTitle>Dados incompletos</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-muted-foreground">
-              Alguns dados necessários estão faltando. Por favor, importe uma nova planilha.
-            </p>
-            <Button onClick={() => navigate('/')}>
-              <Home className="mr-2 h-4 w-4" />
-              Ir para Home
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   const handleSendBatch = async (batch: BatchInfo) => {
     // Proteção: Verificar se o batch já está sendo enviado
     if (sendingBatchIds.has(batch.block_number)) {
@@ -126,13 +103,27 @@ export const BatchesSection = () => {
     setSendingBatchIds(prev => new Set(prev).add(batch.block_number));
 
     try {
-      // Check daily limit before sending
+      // 1. Verificar limite diário (SEM incrementar)
       const limitCheck = await checkDailyLimit(batch.contacts.length);
       
       if (!limitCheck.allowed) {
+        const remaining = limitCheck.limit - limitCheck.used_today;
         toast({
           title: 'Limite diário atingido',
-          description: `Você já enviou ${limitCheck.used_today} de ${limitCheck.limit} disparos permitidos hoje. Restam ${limitCheck.remaining} envios.`,
+          description: `Você tem ${remaining} disparos restantes, mas está tentando enviar ${batch.contacts.length} contatos.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // 2. Obter dados do batch (não do contexto)
+      const batchSheetMeta = batch.sheet_meta;
+      const batchMapping = batch.column_mapping;
+
+      if (!batchSheetMeta || !batchMapping) {
+        toast({
+          title: 'Erro',
+          description: 'Dados de mapeamento não encontrados neste batch',
           variant: 'destructive',
         });
         return;
@@ -152,9 +143,13 @@ export const BatchesSection = () => {
 
       await updateBatch(batch.id, { status: 'sending' });
 
-      const result = await sendToWebhook(batch, columnMapping, sheetMeta, campaign, settings?.webhook_url || '');
+      // 3. Tentar enviar
+      const result = await sendToWebhook(batch, batchMapping, batchSheetMeta, campaign, settings?.webhook_url || '');
 
       if (result.success) {
+        // 4. SÓ CONFIRMA disparo se envio foi bem-sucedido
+        await confirmDailyDispatch(batch.contacts.length);
+        
         await updateBatch(batch.id, { status: 'sent' });
 
         await addHistoryItem({
@@ -170,7 +165,7 @@ export const BatchesSection = () => {
         setSuccessBatchInfo({
           blockNumber: batch.block_number,
           contactsCount: batch.contacts.length,
-          remaining: limitCheck.remaining,
+          remaining: limitCheck.remaining - batch.contacts.length,
           limit: limitCheck.limit,
         });
         setSuccessDialogOpen(true);
