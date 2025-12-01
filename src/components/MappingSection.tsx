@@ -34,36 +34,46 @@ export const MappingSection = () => {
   const [extraCols, setExtraCols] = useState<string[]>([]);
   const [batchSize, setBatchSize] = useState(50);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [isRecovering, setIsRecovering] = useState(false);
 
-  // Redirect if no data (com delay aumentado e fallback sessionStorage)
+  // Lógica robusta de recuperação de dados
   useEffect(() => {
-    const timer = setTimeout(() => {
-      // Verificar também o sessionStorage como fallback
-      const savedData = sessionStorage.getItem('session_parsed_data');
+    if (!parsedData && !isRecovering) {
+      setIsRecovering(true);
       
-      if (!parsedData && !savedData) {
-        navigate('/');
-      }
-      setIsInitializing(false);
-    }, 500); // Aumentado de 100ms para 500ms
-
-    return () => clearTimeout(timer);
-  }, [parsedData, navigate]);
-
-  // Tentar carregar parsedData do sessionStorage se não estiver disponível
-  useEffect(() => {
-    if (!parsedData) {
       const savedData = sessionStorage.getItem('session_parsed_data');
+      const savedMeta = sessionStorage.getItem('session_sheet_meta');
+      
       if (savedData) {
         try {
           const data = JSON.parse(savedData);
           setParsedData(data);
+          
+          // Também recuperar sheetMeta se disponível
+          if (savedMeta) {
+            const meta = JSON.parse(savedMeta);
+            setSheetMeta(meta);
+          }
+          
+          console.log('[MappingSection] Dados recuperados com sucesso do sessionStorage');
         } catch (e) {
           console.error('[MappingSection] Error parsing saved data:', e);
+          // Só redirecionar se realmente falhou ao recuperar
+          navigate('/');
         }
+      } else {
+        // Sem dados no sessionStorage, redirecionar
+        console.warn('[MappingSection] Nenhum dado encontrado no sessionStorage');
+        navigate('/');
       }
+      
+      setIsRecovering(false);
+      setIsInitializing(false);
+    } else if (parsedData) {
+      // Dados já disponíveis
+      setIsInitializing(false);
     }
-  }, [parsedData, setParsedData]);
+  }, [parsedData, isRecovering, setParsedData, setSheetMeta, navigate]);
 
   useEffect(() => {
     if (!parsedData) {
@@ -157,16 +167,20 @@ export const MappingSection = () => {
     }
   };
 
-  // Loading state durante inicialização
-  if (isInitializing) {
+  // Loading state durante inicialização ou recuperação
+  if (isInitializing || isRecovering) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Carregando dados da planilha...</p>
       </div>
     );
   }
 
-  if (!parsedData) return null;
+  // Se ainda não há dados após inicialização, não renderizar
+  if (!parsedData) {
+    return null;
+  }
 
   const availableHeaders = parsedData.headers;
   const extraHeaders = availableHeaders.filter(

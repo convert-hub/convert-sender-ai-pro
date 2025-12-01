@@ -62,10 +62,21 @@ export const QuickActions = () => {
         description: `${data.rows.length} linhas detectadas`,
       });
       
-      // Pequeno delay para garantir propagação do estado
-      await new Promise(resolve => setTimeout(resolve, 50));
+      // Delay aumentado e verificação de persistência antes de navegar
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      navigate('/map');
+      // Verificar se dados foram salvos no sessionStorage
+      const savedData = sessionStorage.getItem('session_parsed_data');
+      if (savedData) {
+        navigate('/map');
+      } else {
+        console.error('[QuickActions] Data not saved to sessionStorage');
+        toast({
+          title: 'Erro',
+          description: 'Falha ao salvar dados. Tente novamente.',
+          variant: 'destructive',
+        });
+      }
     } catch (error) {
       toast({
         title: 'Erro ao processar arquivo',
@@ -117,10 +128,21 @@ export const QuickActions = () => {
         description: `${data.rows.length} linhas detectadas`,
       });
       
-      // Pequeno delay para garantir propagação do estado
-      await new Promise(resolve => setTimeout(resolve, 50));
+      // Delay aumentado e verificação de persistência antes de navegar
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      navigate('/map');
+      // Verificar se dados foram salvos no sessionStorage
+      const savedData = sessionStorage.getItem('session_parsed_data');
+      if (savedData) {
+        navigate('/map');
+      } else {
+        console.error('[QuickActions] Data not saved to sessionStorage');
+        toast({
+          title: 'Erro',
+          description: 'Falha ao salvar dados. Tente novamente.',
+          variant: 'destructive',
+        });
+      }
     } catch (error) {
       toast({
         title: 'Erro ao carregar planilha',
@@ -162,10 +184,20 @@ export const QuickActions = () => {
       description: '120 contatos fictícios prontos para teste',
     });
     
-    // Pequeno delay para garantir propagação do estado
+    // Delay aumentado e verificação de persistência antes de navegar
     setTimeout(() => {
-      navigate('/map');
-    }, 50);
+      const savedData = sessionStorage.getItem('session_parsed_data');
+      if (savedData) {
+        navigate('/map');
+      } else {
+        console.error('[QuickActions] Data not saved to sessionStorage');
+        toast({
+          title: 'Erro',
+          description: 'Falha ao salvar dados. Tente novamente.',
+          variant: 'destructive',
+        });
+      }
+    }, 100);
   };
 
   return (
