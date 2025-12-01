@@ -68,12 +68,16 @@ export const MappingSection = () => {
       }
       
       setIsRecovering(false);
-      setIsInitializing(false);
-    } else if (parsedData) {
-      // Dados já disponíveis
-      setIsInitializing(false);
     }
   }, [parsedData, isRecovering, setParsedData, setSheetMeta, navigate]);
+
+  // Controle separado de isInitializing - só finalizar quando parsedData estiver disponível
+  useEffect(() => {
+    if (parsedData && isInitializing) {
+      console.log('[MappingSection] Dados disponíveis, finalizando inicialização');
+      setIsInitializing(false);
+    }
+  }, [parsedData, isInitializing]);
 
   useEffect(() => {
     if (!parsedData) {
@@ -177,8 +181,19 @@ export const MappingSection = () => {
     );
   }
 
-  // Se ainda não há dados após inicialização, não renderizar
+  // Se não tem parsedData, verificar se sessionStorage tem dados antes de retornar null
   if (!parsedData) {
+    const hasStoredData = sessionStorage.getItem('session_parsed_data');
+    if (hasStoredData) {
+      // Ainda aguardando propagação do estado - mostrar loading
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Carregando dados da planilha...</p>
+        </div>
+      );
+    }
+    // Sem dados em lugar nenhum - não renderizar (useEffect vai redirecionar)
     return null;
   }
 

@@ -60,15 +60,25 @@ export const ImportSection = () => {
         description: `${data.rows.length} linhas detectadas`,
       });
 
-      // Delay aumentado e verificação de persistência antes de navegar
+      // Delay aumentado e verificação dupla de persistência antes de navegar
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Verificar se dados foram salvos no sessionStorage
-      const savedData = sessionStorage.getItem('session_parsed_data');
+      // Primeira verificação
+      let savedData = sessionStorage.getItem('session_parsed_data');
+      if (!savedData) {
+        // Tentar salvar manualmente novamente
+        console.warn('[ImportSection] Dados não encontrados, tentando salvar novamente');
+        sessionStorage.setItem('session_parsed_data', JSON.stringify(data));
+        await new Promise(resolve => setTimeout(resolve, 50));
+        savedData = sessionStorage.getItem('session_parsed_data');
+      }
+      
+      // Verificação final e navegação
       if (savedData) {
+        console.log('[ImportSection] Navegando para /map com dados confirmados');
         navigate("/map");
       } else {
-        console.error('[ImportSection] Data not saved to sessionStorage');
+        console.error('[ImportSection] Data not saved to sessionStorage após retry');
         toast({
           title: 'Erro',
           description: 'Falha ao salvar dados. Tente novamente.',
@@ -126,15 +136,25 @@ export const ImportSection = () => {
         description: `${data.rows.length} linhas detectadas`,
       });
 
-      // Delay aumentado e verificação de persistência antes de navegar
+      // Delay aumentado e verificação dupla de persistência antes de navegar
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Verificar se dados foram salvos no sessionStorage
-      const savedData = sessionStorage.getItem('session_parsed_data');
+      // Primeira verificação
+      let savedData = sessionStorage.getItem('session_parsed_data');
+      if (!savedData) {
+        // Tentar salvar manualmente novamente
+        console.warn('[ImportSection] Dados não encontrados, tentando salvar novamente');
+        sessionStorage.setItem('session_parsed_data', JSON.stringify(data));
+        await new Promise(resolve => setTimeout(resolve, 50));
+        savedData = sessionStorage.getItem('session_parsed_data');
+      }
+      
+      // Verificação final e navegação
       if (savedData) {
+        console.log('[ImportSection] Navegando para /map com dados confirmados');
         navigate("/map");
       } else {
-        console.error('[ImportSection] Data not saved to sessionStorage');
+        console.error('[ImportSection] Data not saved to sessionStorage após retry');
         toast({
           title: 'Erro',
           description: 'Falha ao salvar dados. Tente novamente.',
@@ -180,13 +200,24 @@ export const ImportSection = () => {
       description: "120 contatos fictícios prontos para teste",
     });
 
-    // Delay aumentado e verificação de persistência antes de navegar
-    setTimeout(() => {
-      const savedData = sessionStorage.getItem('session_parsed_data');
+    // Delay aumentado e verificação dupla de persistência antes de navegar
+    setTimeout(async () => {
+      // Primeira verificação
+      let savedData = sessionStorage.getItem('session_parsed_data');
+      if (!savedData) {
+        // Tentar salvar manualmente novamente
+        console.warn('[ImportSection] Dados não encontrados, tentando salvar novamente');
+        sessionStorage.setItem('session_parsed_data', JSON.stringify(data));
+        await new Promise(resolve => setTimeout(resolve, 50));
+        savedData = sessionStorage.getItem('session_parsed_data');
+      }
+      
+      // Verificação final e navegação
       if (savedData) {
+        console.log('[ImportSection] Navegando para /map com dados confirmados');
         navigate("/map");
       } else {
-        console.error('[ImportSection] Data not saved to sessionStorage');
+        console.error('[ImportSection] Data not saved to sessionStorage após retry');
         toast({
           title: 'Erro',
           description: 'Falha ao salvar dados. Tente novamente.',
