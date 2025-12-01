@@ -30,8 +30,14 @@ const STORAGE_KEYS = {
 export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Temporary session data com persistência em sessionStorage
   const [parsedData, setParsedDataInternal] = useState<ParsedData | null>(() => {
-    const saved = sessionStorage.getItem(STORAGE_KEYS.PARSED_DATA);
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEYS.PARSED_DATA);
+      console.log('[DispatchContext] Initializing parsedData from sessionStorage:', !!saved);
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      console.error('[DispatchContext] Error parsing sessionStorage:', e);
+      return null;
+    }
   });
   
   const [sheetMeta, setSheetMetaInternal] = useState<SheetMeta | null>(() => {

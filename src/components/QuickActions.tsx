@@ -62,6 +62,9 @@ export const QuickActions = () => {
         description: `${data.rows.length} linhas detectadas`,
       });
       
+      // Pequeno delay para garantir propagação do estado
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
       navigate('/map');
     } catch (error) {
       toast({
@@ -114,6 +117,9 @@ export const QuickActions = () => {
         description: `${data.rows.length} linhas detectadas`,
       });
       
+      // Pequeno delay para garantir propagação do estado
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
       navigate('/map');
     } catch (error) {
       toast({
@@ -156,7 +162,10 @@ export const QuickActions = () => {
       description: '120 contatos fictícios prontos para teste',
     });
     
-    navigate('/map');
+    // Pequeno delay para garantir propagação do estado
+    setTimeout(() => {
+      navigate('/map');
+    }, 50);
   };
 
   return (

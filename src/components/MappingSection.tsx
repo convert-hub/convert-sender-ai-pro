@@ -24,7 +24,7 @@ import { toast as sonnerToast } from 'sonner';
 
 export const MappingSection = () => {
   const navigate = useNavigate();
-  const { parsedData, setColumnMapping, sheetMeta, currentCampaignId, setSheetMeta } = useDispatch();
+  const { parsedData, setParsedData, setColumnMapping, sheetMeta, currentCampaignId, setSheetMeta } = useDispatch();
   const { updateStats } = useUserSettings();
   const { addBatch } = useBatches();
   
@@ -35,17 +35,35 @@ export const MappingSection = () => {
   const [batchSize, setBatchSize] = useState(50);
   const [isInitializing, setIsInitializing] = useState(true);
 
-  // Redirect if no data (com delay para evitar race condition)
+  // Redirect if no data (com delay aumentado e fallback sessionStorage)
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (!parsedData) {
+      // Verificar também o sessionStorage como fallback
+      const savedData = sessionStorage.getItem('session_parsed_data');
+      
+      if (!parsedData && !savedData) {
         navigate('/');
       }
       setIsInitializing(false);
-    }, 100);
+    }, 500); // Aumentado de 100ms para 500ms
 
     return () => clearTimeout(timer);
   }, [parsedData, navigate]);
+
+  // Tentar carregar parsedData do sessionStorage se não estiver disponível
+  useEffect(() => {
+    if (!parsedData) {
+      const savedData = sessionStorage.getItem('session_parsed_data');
+      if (savedData) {
+        try {
+          const data = JSON.parse(savedData);
+          setParsedData(data);
+        } catch (e) {
+          console.error('[MappingSection] Error parsing saved data:', e);
+        }
+      }
+    }
+  }, [parsedData, setParsedData]);
 
   useEffect(() => {
     if (!parsedData) {

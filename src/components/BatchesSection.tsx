@@ -363,6 +363,15 @@ export const BatchesSection = () => {
                   </div>
                 </div>
 
+                {!batch.sheet_meta && (
+                  <Alert className="mt-4 border-yellow-500/50 bg-yellow-500/10">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-sm">
+                      ⚠️ Este bloco foi criado antes da atualização e não possui dados de mapeamento. Por favor, reimporte a planilha.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {batch.status === 'scheduled' && batch.scheduled_at && (
                   <Alert className="mt-4 border-orange-500/50 bg-orange-500/10">
                     <CalendarIcon className="h-4 w-4" />
