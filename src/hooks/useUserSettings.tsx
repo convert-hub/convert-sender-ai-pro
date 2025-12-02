@@ -18,6 +18,9 @@ interface UserStats {
 interface UserSettings {
   webhook_url: string;
   stats: UserStats;
+  daily_dispatch_limit: number;
+  dispatches_today: number;
+  last_dispatch_date: string | null;
 }
 
 interface DailyLimitCheck {
@@ -40,6 +43,9 @@ export const useUserSettings = () => {
       batches_total: 0,
       batches_sent: 0,
     },
+    daily_dispatch_limit: 50,
+    dispatches_today: 0,
+    last_dispatch_date: null,
   });
   const [loading, setLoading] = useState(true);
 
@@ -89,6 +95,9 @@ export const useUserSettings = () => {
                 batches_total: 0,
                 batches_sent: 0,
               }) as unknown as UserStats,
+              daily_dispatch_limit: newData.daily_dispatch_limit || 50,
+              dispatches_today: newData.dispatches_today || 0,
+              last_dispatch_date: newData.last_dispatch_date || null,
             });
           } else {
             throw error;
@@ -104,6 +113,9 @@ export const useUserSettings = () => {
               batches_total: 0,
               batches_sent: 0,
             }) as unknown as UserStats,
+            daily_dispatch_limit: data.daily_dispatch_limit || 50,
+            dispatches_today: data.dispatches_today || 0,
+            last_dispatch_date: data.last_dispatch_date || null,
           });
         }
       } catch (error) {
@@ -131,6 +143,9 @@ export const useUserSettings = () => {
           setSettings({
             webhook_url: payload.new.webhook_url || '',
             stats: payload.new.stats as UserStats,
+            daily_dispatch_limit: payload.new.daily_dispatch_limit || 50,
+            dispatches_today: payload.new.dispatches_today || 0,
+            last_dispatch_date: payload.new.last_dispatch_date || null,
           });
         }
       )

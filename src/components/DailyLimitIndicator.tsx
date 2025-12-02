@@ -7,12 +7,12 @@ import { Alert, AlertDescription } from './ui/alert';
 export const DailyLimitIndicator = () => {
   const { settings } = useUserSettings();
 
-  if (!settings?.stats) return null;
+  if (!settings) return null;
 
-  const stats = settings.stats as any;
-  const limit = stats.daily_dispatch_limit || 50;
-  const usedToday = stats.dispatches_today || 0;
-  const remaining = limit - usedToday;
+  // Usar campos das colunas separadas (não do JSONB stats)
+  const limit = settings.daily_dispatch_limit || 50;
+  const usedToday = settings.dispatches_today || 0;
+  const remaining = Math.max(0, limit - usedToday);
   const percentage = (usedToday / limit) * 100;
 
   const getStatusColor = () => {
