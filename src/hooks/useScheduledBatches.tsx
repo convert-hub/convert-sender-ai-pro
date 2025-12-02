@@ -12,22 +12,54 @@ export const useScheduledBatches = () => {
   const { settings, incrementStats, checkDailyLimit, confirmDailyDispatch } = useUserSettings();
   const { campaigns } = useCampaigns();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Refs para evitar re-execuções do useEffect
+  const batchesRef = useRef(batches);
+  const settingsRef = useRef(settings);
+  const campaignsRef = useRef(campaigns);
+  
+  // Set para rastrear batches sendo processados (evita duplicatas)
+  const processingRef = useRef<Set<string>>(new Set());
+
+  // Atualizar refs quando os valores mudam
+  useEffect(() => {
+    batchesRef.current = batches;
+  }, [batches]);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  useEffect(() => {
+    campaignsRef.current = campaigns;
+  }, [campaigns]);
 
   useEffect(() => {
     const checkScheduledBatches = async () => {
       const now = new Date();
+      const currentBatches = batchesRef.current;
       
-      const scheduledBatches = batches.filter(
+      const scheduledBatches = currentBatches.filter(
         batch => batch.status === 'scheduled' && batch.scheduled_at
       );
 
       for (const batch of scheduledBatches) {
+        // Pular se já está sendo processado
+        if (processingRef.current.has(batch.id)) {
+          console.log(`[Scheduler] Batch #${batch.block_number} já está sendo processado, pulando...`);
+          continue;
+        }
+
         const scheduledTime = new Date(batch.scheduled_at!);
         
         if (now >= scheduledTime) {
-          await updateBatch(batch.id, { status: 'sending' });
+          // Marcar como em processamento ANTES de qualquer operação
+          processingRef.current.add(batch.id);
+          console.log(`[Scheduler] Iniciando processamento do batch #${batch.block_number}`);
 
           try {
+            await updateBatch(batch.id, { status: 'sending' });
+
             // 1. Verificar limite diário (SEM incrementar)
             const limitCheck = await checkDailyLimit(batch.contacts.length);
             
@@ -38,7 +70,7 @@ export const useScheduledBatches = () => {
               );
             }
 
-            // 2. Obter dados do batch (não do contexto)
+            // 2. Obter dados do batch
             const batchSheetMeta = batch.sheet_meta;
             const batchMapping = batch.column_mapping;
 
@@ -46,7 +78,7 @@ export const useScheduledBatches = () => {
               throw new Error('Dados de mapeamento não encontrados no batch');
             }
             
-            const campaign = campaigns.find(c => c.id === batch.campaign_id);
+            const campaign = campaignsRef.current.find(c => c.id === batch.campaign_id);
             if (!campaign) {
               throw new Error('Campanha não encontrada');
             }
@@ -57,7 +89,7 @@ export const useScheduledBatches = () => {
               batchMapping,
               batchSheetMeta,
               campaign,
-              settings?.webhook_url || ''
+              settingsRef.current?.webhook_url || ''
             );
 
             if (response.success) {
@@ -77,6 +109,8 @@ export const useScheduledBatches = () => {
                 title: 'Envio agendado concluído',
                 description: `Bloco #${batch.block_number} foi enviado automaticamente`,
               });
+              
+              console.log(`[Scheduler] Batch #${batch.block_number} enviado com sucesso`);
             } else {
               throw new Error(response.error || 'Erro ao enviar');
             }
@@ -94,11 +128,17 @@ export const useScheduledBatches = () => {
               description: `Falha ao enviar bloco #${batch.block_number}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
               variant: 'destructive',
             });
+            
+            console.error(`[Scheduler] Erro no batch #${batch.block_number}:`, error);
+          } finally {
+            // Remover do set de processamento
+            processingRef.current.delete(batch.id);
           }
         }
       }
     };
 
+    // Iniciar intervalo apenas uma vez
     intervalRef.current = setInterval(checkScheduledBatches, 30000);
     checkScheduledBatches();
 
@@ -107,5 +147,6 @@ export const useScheduledBatches = () => {
         clearInterval(intervalRef.current);
       }
     };
-  }, [batches, updateBatch, addHistoryItem, settings, incrementStats, campaigns, checkDailyLimit, confirmDailyDispatch]);
+  // Dependências mínimas - funções estáveis apenas
+  }, [updateBatch, addHistoryItem, incrementStats, checkDailyLimit, confirmDailyDispatch]);
 };
