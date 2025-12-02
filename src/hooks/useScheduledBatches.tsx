@@ -63,10 +63,15 @@ export const useScheduledBatches = () => {
             // 1. Verificar limite diário (SEM incrementar)
             const limitCheck = await checkDailyLimit(batch.contacts.length);
             
+            // Verificar se houve ERRO na verificação
+            if (limitCheck.error) {
+              throw new Error('Erro ao verificar limite diário. Tente novamente mais tarde.');
+            }
+
+            // Limite realmente atingido
             if (!limitCheck.allowed) {
-              const remaining = limitCheck.limit - limitCheck.used_today;
               throw new Error(
-                `Limite diário insuficiente. Você tem ${remaining} disparos restantes, mas está tentando enviar ${batch.contacts.length} contatos.`
+                `Limite diário atingido. Restam ${limitCheck.remaining} disparos, mas o batch tem ${batch.contacts.length} contatos.`
               );
             }
 
