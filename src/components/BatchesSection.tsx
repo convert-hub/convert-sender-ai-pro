@@ -106,11 +106,21 @@ export const BatchesSection = () => {
       // 1. Verificar limite diário (SEM incrementar)
       const limitCheck = await checkDailyLimit(batch.contacts.length);
       
+      // Verificar se houve ERRO na verificação (diferente de limite atingido)
+      if (limitCheck.error) {
+        toast({
+          title: 'Erro na verificação',
+          description: 'Não foi possível verificar o limite diário. Tente novamente.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Limite realmente atingido
       if (!limitCheck.allowed) {
-        const remaining = limitCheck.limit - limitCheck.used_today;
         toast({
           title: 'Limite diário atingido',
-          description: `Você tem ${remaining} disparos restantes, mas está tentando enviar ${batch.contacts.length} contatos.`,
+          description: `Você tem ${limitCheck.remaining} disparos restantes, mas está tentando enviar ${batch.contacts.length} contatos.`,
           variant: 'destructive',
         });
         return;

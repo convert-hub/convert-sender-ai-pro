@@ -226,7 +226,7 @@ export const useUserSettings = () => {
       return data as unknown as DailyLimitCheck;
     } catch (error) {
       console.error('Error checking daily limit:', error);
-      toast.error('Erro ao verificar limite diário');
+      // NÃO mostrar toast aqui - deixar o chamador decidir como tratar
       return {
         allowed: false,
         remaining: 0,
