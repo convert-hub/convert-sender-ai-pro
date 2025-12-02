@@ -21,6 +21,7 @@ import { CampaignSelector } from './CampaignSelector';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { useBatches } from '@/hooks/useBatches';
 import { toast as sonnerToast } from 'sonner';
+import type { ParsedData, SheetMeta } from '@/types/dispatch';
 
 export const MappingSection = () => {
   const navigate = useNavigate();
@@ -28,64 +29,68 @@ export const MappingSection = () => {
   const { updateStats } = useUserSettings();
   const { addBatch } = useBatches();
   
+  // ✅ SOLUÇÃO DEFINITIVA: Estado local inicializado SINCRONAMENTE do sessionStorage
+  const [localParsedData] = useState<ParsedData | null>(() => {
+    const saved = sessionStorage.getItem('session_parsed_data');
+    if (saved) {
+      try {
+        console.log('[MappingSection] Inicializando dados SINCRONAMENTE do sessionStorage');
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('[MappingSection] Erro ao parsear sessionStorage:', e);
+        return null;
+      }
+    }
+    console.log('[MappingSection] Nenhum dado no sessionStorage');
+    return null;
+  });
+  
+  const [localSheetMeta] = useState<SheetMeta | null>(() => {
+    const saved = sessionStorage.getItem('session_sheet_meta');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  // ✅ Usar dados locais OU do contexto (fallback duplo)
+  const effectiveData = localParsedData || parsedData;
+  const effectiveMeta = localSheetMeta || sheetMeta;
+  
   const [nameCol, setNameCol] = useState('');
   const [emailCol, setEmailCol] = useState('');
   const [phoneCol, setPhoneCol] = useState('');
   const [extraCols, setExtraCols] = useState<string[]>([]);
   const [batchSize, setBatchSize] = useState(50);
-  const [isInitializing, setIsInitializing] = useState(true);
-  const [isRecovering, setIsRecovering] = useState(false);
 
-  // Lógica robusta de recuperação de dados
+  // ✅ Sincronizar com contexto se necessário (uma única vez na montagem)
   useEffect(() => {
-    if (!parsedData && !isRecovering) {
-      setIsRecovering(true);
-      
-      const savedData = sessionStorage.getItem('session_parsed_data');
-      const savedMeta = sessionStorage.getItem('session_sheet_meta');
-      
-      if (savedData) {
-        try {
-          const data = JSON.parse(savedData);
-          setParsedData(data);
-          
-          // Também recuperar sheetMeta se disponível
-          if (savedMeta) {
-            const meta = JSON.parse(savedMeta);
-            setSheetMeta(meta);
-          }
-          
-          console.log('[MappingSection] Dados recuperados com sucesso do sessionStorage');
-        } catch (e) {
-          console.error('[MappingSection] Error parsing saved data:', e);
-          // Só redirecionar se realmente falhou ao recuperar
-          navigate('/');
-        }
-      } else {
-        // Sem dados no sessionStorage, redirecionar
-        console.warn('[MappingSection] Nenhum dado encontrado no sessionStorage');
-        navigate('/');
-      }
-      
-      setIsRecovering(false);
+    if (localParsedData && !parsedData) {
+      console.log('[MappingSection] Sincronizando dados locais com contexto');
+      setParsedData(localParsedData);
     }
-  }, [parsedData, isRecovering, setParsedData, setSheetMeta, navigate]);
+    if (localSheetMeta && !sheetMeta) {
+      setSheetMeta(localSheetMeta);
+    }
+  }, []); // Rodar apenas na montagem
 
-  // Controle separado de isInitializing - só finalizar quando parsedData estiver disponível
+  // ✅ Redirecionar se não houver dados em nenhum lugar
   useEffect(() => {
-    if (parsedData && isInitializing) {
-      console.log('[MappingSection] Dados disponíveis, finalizando inicialização');
-      setIsInitializing(false);
+    if (!effectiveData) {
+      console.warn('[MappingSection] Sem dados disponíveis, redirecionando para home...');
+      navigate('/');
     }
-  }, [parsedData, isInitializing]);
+  }, [effectiveData, navigate]);
 
+  // Auto-detect columns quando temos dados
   useEffect(() => {
-    if (!parsedData) {
-      return;
-    }
+    if (!effectiveData) return;
 
-    // Auto-detect columns
-    const headers = parsedData.headers;
+    const headers = effectiveData.headers;
     
     const findColumn = (keywords: string[]) => {
       return headers.find(h =>
@@ -96,12 +101,13 @@ export const MappingSection = () => {
     setNameCol(findColumn(['nome', 'name']));
     setEmailCol(findColumn(['email', 'e-mail']));
     setPhoneCol(findColumn(['telefone', 'phone', 'celular', 'tel']));
-  }, [parsedData, navigate]);
+  }, [effectiveData]);
 
+  // Atualizar sheetMeta com campaignId
   useEffect(() => {
-    if (currentCampaignId && sheetMeta) {
+    if (currentCampaignId && effectiveMeta) {
       setSheetMeta({
-        ...sheetMeta,
+        ...effectiveMeta,
         campaign_id: currentCampaignId
       });
     }
@@ -114,7 +120,7 @@ export const MappingSection = () => {
   };
 
   const handleGenerateBatches = async () => {
-    if (!parsedData) return;
+    if (!effectiveData) return;
 
     if (!currentCampaignId) {
       toast({
@@ -144,7 +150,7 @@ export const MappingSection = () => {
       extras: extraCols,
     };
 
-    const result = createBatches(parsedData.rows, mapping, batchSize, sheetMeta?.campaign_id);
+    const result = createBatches(effectiveData.rows, mapping, batchSize, effectiveMeta?.campaign_id);
 
     setColumnMapping(mapping);
     
@@ -153,7 +159,7 @@ export const MappingSection = () => {
       for (const batch of result.batches) {
         await addBatch({
           ...batch,
-          sheet_meta: sheetMeta,
+          sheet_meta: effectiveMeta,
           column_mapping: mapping,
         });
       }
@@ -171,33 +177,17 @@ export const MappingSection = () => {
     }
   };
 
-  // Loading state durante inicialização ou recuperação
-  if (isInitializing || isRecovering) {
+  // ✅ Se não tem dados, mostrar loading enquanto redireciona
+  if (!effectiveData) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Carregando dados da planilha...</p>
+        <p className="text-sm text-muted-foreground">Redirecionando...</p>
       </div>
     );
   }
 
-  // Se não tem parsedData, verificar se sessionStorage tem dados antes de retornar null
-  if (!parsedData) {
-    const hasStoredData = sessionStorage.getItem('session_parsed_data');
-    if (hasStoredData) {
-      // Ainda aguardando propagação do estado - mostrar loading
-      return (
-        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Carregando dados da planilha...</p>
-        </div>
-      );
-    }
-    // Sem dados em lugar nenhum - não renderizar (useEffect vai redirecionar)
-    return null;
-  }
-
-  const availableHeaders = parsedData.headers;
+  const availableHeaders = effectiveData.headers;
   const extraHeaders = availableHeaders.filter(
     h => h !== nameCol && h !== emailCol && h !== phoneCol && nameCol !== 'none' && emailCol !== 'none' && phoneCol !== 'none'
   );
@@ -377,7 +367,7 @@ export const MappingSection = () => {
                 </tr>
               </thead>
               <tbody>
-                {parsedData.rows.slice(0, 3).map((row, idx) => (
+                {effectiveData.rows.slice(0, 3).map((row, idx) => (
                   <tr key={idx} className="border-b">
                     {nameCol && nameCol !== 'none' && <td className="p-2">{row[nameCol]}</td>}
                     {emailCol && emailCol !== 'none' && <td className="p-2">{row[emailCol]}</td>}
