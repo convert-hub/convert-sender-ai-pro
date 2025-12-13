@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -10,9 +10,6 @@ interface UserStats {
   rows_invalid: number;
   batches_total: number;
   batches_sent: number;
-  daily_dispatch_limit?: number;
-  dispatches_today?: number;
-  last_dispatch_date?: string;
 }
 
 interface UserSettings {
@@ -156,7 +153,7 @@ export const useUserSettings = () => {
     };
   }, [user]);
 
-  const updateWebhookUrl = async (url: string) => {
+  const updateWebhookUrl = useCallback(async (url: string) => {
     if (!user) return;
 
     try {
@@ -173,9 +170,9 @@ export const useUserSettings = () => {
       toast.error('Erro ao atualizar webhook');
       throw error;
     }
-  };
+  }, [user]);
 
-  const updateStats = async (newStats: Partial<UserStats>) => {
+  const updateStats = useCallback(async (newStats: Partial<UserStats>) => {
     if (!user) return;
 
     try {
@@ -192,9 +189,9 @@ export const useUserSettings = () => {
       toast.error('Erro ao atualizar estatísticas');
       throw error;
     }
-  };
+  }, [user, settings.stats]);
 
-  const incrementStats = async (field: keyof UserStats, amount: number = 1) => {
+  const incrementStats = useCallback(async (field: keyof UserStats, amount: number = 1) => {
     if (!user) return;
 
     try {
@@ -216,9 +213,9 @@ export const useUserSettings = () => {
       console.error('Error incrementing stats:', error);
       throw error;
     }
-  };
+  }, [user, settings.stats]);
 
-  const checkDailyLimit = async (contactsToSend: number): Promise<DailyLimitCheck> => {
+  const checkDailyLimit = useCallback(async (contactsToSend: number): Promise<DailyLimitCheck> => {
     if (!user) {
       return {
         allowed: false,
@@ -241,7 +238,6 @@ export const useUserSettings = () => {
       return data as unknown as DailyLimitCheck;
     } catch (error) {
       console.error('Error checking daily limit:', error);
-      // NÃO mostrar toast aqui - deixar o chamador decidir como tratar
       return {
         allowed: false,
         remaining: 0,
@@ -250,9 +246,9 @@ export const useUserSettings = () => {
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
-  };
+  }, [user]);
 
-  const confirmDailyDispatch = async (contactsSent: number): Promise<boolean> => {
+  const confirmDailyDispatch = useCallback(async (contactsSent: number): Promise<boolean> => {
     if (!user) return false;
 
     try {
@@ -269,7 +265,7 @@ export const useUserSettings = () => {
       console.error('Error confirming daily dispatch:', error);
       return false;
     }
-  };
+  }, [user]);
 
   return {
     settings,

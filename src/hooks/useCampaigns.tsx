@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Campaign } from '@/types/dispatch';
 import { useAuth } from '@/contexts/AuthContext';
@@ -66,7 +66,7 @@ export const useCampaigns = () => {
     };
   }, [user]);
 
-  const addCampaign = async (campaign: Omit<Campaign, 'id' | 'created_at' | 'updated_at'>) => {
+  const addCampaign = useCallback(async (campaign: Omit<Campaign, 'id' | 'created_at' | 'updated_at'>) => {
     if (!user) return;
 
     try {
@@ -93,9 +93,9 @@ export const useCampaigns = () => {
       toast.error('Erro ao criar campanha');
       throw error;
     }
-  };
+  }, [user]);
 
-  const updateCampaign = async (id: string, updates: Partial<Campaign>) => {
+  const updateCampaign = useCallback(async (id: string, updates: Partial<Campaign>) => {
     if (!user) return;
 
     try {
@@ -121,9 +121,9 @@ export const useCampaigns = () => {
       toast.error('Erro ao atualizar campanha');
       throw error;
     }
-  };
+  }, [user]);
 
-  const deleteCampaign = async (id: string) => {
+  const deleteCampaign = useCallback(async (id: string) => {
     if (!user) return;
 
     try {
@@ -144,7 +144,7 @@ export const useCampaigns = () => {
       toast.error('Erro ao excluir campanha');
       throw error;
     }
-  };
+  }, [user]);
 
   return {
     campaigns,
