@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { DispatchHistory } from '@/types/dispatch';
 import { useAuth } from '@/contexts/AuthContext';
@@ -78,7 +78,7 @@ export const useHistory = () => {
     };
   }, [user]);
 
-  const addHistoryItem = async (item: Omit<DispatchHistory, 'id' | 'timestamp'>) => {
+  const addHistoryItem = useCallback(async (item: Omit<DispatchHistory, 'id' | 'timestamp'>) => {
     if (!user) return;
 
     try {
@@ -103,7 +103,7 @@ export const useHistory = () => {
       toast.error('Erro ao adicionar ao histórico');
       throw error;
     }
-  };
+  }, [user]);
 
   return {
     history,

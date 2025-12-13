@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { BatchInfo } from '@/types/dispatch';
 import { useAuth } from '@/contexts/AuthContext';
@@ -118,7 +118,7 @@ export const useBatches = () => {
     };
   }, [user]);
 
-  const addBatch = async (batch: BatchInfo) => {
+  const addBatch = useCallback(async (batch: BatchInfo) => {
     if (!user) return;
 
     try {
@@ -149,9 +149,9 @@ export const useBatches = () => {
       toast.error('Erro ao criar lote');
       throw error;
     }
-  };
+  }, [user]);
 
-  const updateBatch = async (id: string, updates: Partial<BatchInfo>) => {
+  const updateBatch = useCallback(async (id: string, updates: Partial<BatchInfo>) => {
     if (!user) return;
 
     try {
@@ -173,9 +173,9 @@ export const useBatches = () => {
       toast.error('Erro ao atualizar lote');
       throw error;
     }
-  };
+  }, [user]);
 
-  const deleteBatch = async (id: string) => {
+  const deleteBatch = useCallback(async (id: string) => {
     if (!user) return;
 
     try {
@@ -196,7 +196,7 @@ export const useBatches = () => {
       toast.error('Erro ao excluir lote');
       throw error;
     }
-  };
+  }, [user]);
 
   return {
     batches,

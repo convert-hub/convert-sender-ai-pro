@@ -58,8 +58,8 @@ export const BatchesSection = () => {
     limit: number;
   } | null>(null);
 
-  // Estado para prevenir cliques múltiplos
-  const [sendingBatchIds, setSendingBatchIds] = useState<Set<number>>(new Set());
+  // Estado para prevenir cliques múltiplos (usando UUID)
+  const [sendingBatchIds, setSendingBatchIds] = useState<Set<string>>(new Set());
   
   // Estado para controlar diálogo de exclusão
   const [deletingBatch, setDeletingBatch] = useState<string | null>(null);
@@ -89,8 +89,8 @@ export const BatchesSection = () => {
   }
 
   const handleSendBatch = async (batch: BatchInfo) => {
-    // Proteção: Verificar se o batch já está sendo enviado
-    if (sendingBatchIds.has(batch.block_number)) {
+    // Proteção: Verificar se o batch já está sendo enviado (usando UUID)
+    if (sendingBatchIds.has(batch.id)) {
       toast({
         title: 'Aguarde',
         description: 'Este bloco já está sendo enviado. Por favor, aguarde.',
@@ -99,8 +99,8 @@ export const BatchesSection = () => {
       return;
     }
 
-    // Proteção: Adicionar ao Set de batches sendo enviados
-    setSendingBatchIds(prev => new Set(prev).add(batch.block_number));
+    // Proteção: Adicionar ao Set de batches sendo enviados (usando UUID)
+    setSendingBatchIds(prev => new Set(prev).add(batch.id));
 
     try {
       // 1. Verificar limite diário (SEM incrementar)
@@ -197,10 +197,10 @@ export const BatchesSection = () => {
         });
       }
     } finally {
-      // Proteção: Sempre remover do Set ao finalizar (sucesso ou erro)
+      // Proteção: Sempre remover do Set ao finalizar (sucesso ou erro) - usando UUID
       setSendingBatchIds(prev => {
         const newSet = new Set(prev);
-        newSet.delete(batch.block_number);
+        newSet.delete(batch.id);
         return newSet;
       });
     }
@@ -416,11 +416,11 @@ export const BatchesSection = () => {
                       </Button>
                       <Button
                         onClick={() => handleSendBatch(batch)}
-                        disabled={sendingBatchIds.has(batch.block_number)}
+                        disabled={sendingBatchIds.has(batch.id)}
                         className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
                       >
                         <Send className="mr-2 h-4 w-4" />
-                        {sendingBatchIds.has(batch.block_number) ? 'Enviando...' : 'Enviar Agora'}
+                        {sendingBatchIds.has(batch.id) ? 'Enviando...' : 'Enviar Agora'}
                       </Button>
                     </>
                   ) : (
@@ -430,14 +430,14 @@ export const BatchesSection = () => {
                         disabled={
                           batch.status === 'sending' || 
                           batch.status === 'sent' || 
-                          sendingBatchIds.has(batch.block_number)
+                          sendingBatchIds.has(batch.id)
                         }
                         className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Send className="mr-2 h-4 w-4" />
                         {batch.status === 'sent' 
                           ? 'Enviado' 
-                          : (batch.status === 'sending' || sendingBatchIds.has(batch.block_number))
+                          : (batch.status === 'sending' || sendingBatchIds.has(batch.id))
                             ? 'Enviando...' 
                             : 'Enviar'}
                       </Button>
