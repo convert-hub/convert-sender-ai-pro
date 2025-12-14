@@ -1,1 +1,7 @@
 project_id = "gdcnyznabtjplewtdylp"
+
+[functions.delete-user]
+verify_jwt = true
+
+[functions.process-scheduled-batches]
+verify_jwt = false
