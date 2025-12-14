@@ -46,6 +46,7 @@ export const BatchesSection = () => {
   const { campaigns } = useCampaigns();
   const navigate = useNavigate();
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [selectedBatchNumber, setSelectedBatchNumber] = useState<number | null>(null);
   const [selectedBatchContactsCount, setSelectedBatchContactsCount] = useState<number>(0);
   
@@ -206,17 +207,19 @@ export const BatchesSection = () => {
     }
   };
 
-  const handleScheduleBatch = (batchNumber: number) => {
-    const batch = batches.find(b => b.block_number === batchNumber);
-    setSelectedBatchNumber(batchNumber);
-    setSelectedBatchContactsCount(batch?.contacts.length || 0);
+  const handleScheduleBatch = (batchId: string) => {
+    const batch = batches.find(b => b.id === batchId);
+    if (!batch) return;
+    setSelectedBatchId(batchId);
+    setSelectedBatchNumber(batch.block_number);
+    setSelectedBatchContactsCount(batch.contacts.length);
     setScheduleDialogOpen(true);
   };
 
   const handleConfirmSchedule = async (scheduledAt: string) => {
-    if (selectedBatchNumber === null) return;
+    if (!selectedBatchId) return;
 
-    const batch = batches.find(b => b.block_number === selectedBatchNumber);
+    const batch = batches.find(b => b.id === selectedBatchId);
     if (!batch) return;
 
     await updateBatch(batch.id, {
@@ -226,14 +229,15 @@ export const BatchesSection = () => {
 
     toast({
       title: 'Envio agendado',
-      description: `Bloco #${selectedBatchNumber} será enviado em ${format(new Date(scheduledAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`,
+      description: `Bloco #${batch.block_number} será enviado em ${format(new Date(scheduledAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`,
     });
 
+    setSelectedBatchId(null);
     setSelectedBatchNumber(null);
   };
 
-  const handleCancelSchedule = async (batchNumber: number) => {
-    const batch = batches.find(b => b.block_number === batchNumber);
+  const handleCancelSchedule = async (batchId: string) => {
+    const batch = batches.find(b => b.id === batchId);
     if (!batch) return;
 
     await updateBatch(batch.id, {
@@ -243,7 +247,7 @@ export const BatchesSection = () => {
 
     toast({
       title: 'Agendamento cancelado',
-      description: `Bloco #${batchNumber} voltou para status pronto`,
+      description: `Bloco #${batch.block_number} voltou para status pronto`,
     });
   };
 
@@ -408,7 +412,7 @@ export const BatchesSection = () => {
                     <>
                       <Button
                         variant="outline"
-                        onClick={() => handleCancelSchedule(batch.block_number)}
+                        onClick={() => handleCancelSchedule(batch.id)}
                         className="flex-1"
                       >
                         <XCircle className="mr-2 h-4 w-4" />
@@ -444,7 +448,7 @@ export const BatchesSection = () => {
                       {batch.status === 'ready' && (
                         <Button
                           variant="outline"
-                          onClick={() => handleScheduleBatch(batch.block_number)}
+                          onClick={() => handleScheduleBatch(batch.id)}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           Agendar
