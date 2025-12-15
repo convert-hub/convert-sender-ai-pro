@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,14 +8,26 @@ import { Plus, Target, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { CampaignForm } from './CampaignForm';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { toast } from 'sonner';
 
 export const CampaignSelector = () => {
   const { currentCampaignId, setCurrentCampaignId } = useDispatch();
-  const { campaigns } = useCampaigns();
+  const { campaigns, loading } = useCampaigns();
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const activeCampaigns = campaigns.filter(c => c.status === 'active');
-  const selectedCampaign = campaigns.find(c => c.id === currentCampaignId);
+  const selectedCampaign = activeCampaigns.find(c => c.id === currentCampaignId);
+
+  // Valida se a campanha selecionada ainda está ativa
+  useEffect(() => {
+    if (!loading && currentCampaignId && campaigns.length > 0) {
+      const isActiveSelected = activeCampaigns.some(c => c.id === currentCampaignId);
+      if (!isActiveSelected) {
+        setCurrentCampaignId(null);
+        toast.info('A campanha selecionada foi arquivada. Por favor, selecione outra campanha.');
+      }
+    }
+  }, [currentCampaignId, activeCampaigns, campaigns.length, loading, setCurrentCampaignId]);
 
   if (campaigns.length === 0) {
     return (
