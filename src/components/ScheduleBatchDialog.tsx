@@ -3,9 +3,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { TimeSelect24h } from '@/components/ui/time-select-24h';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Clock, Calendar as CalendarIcon, AlertTriangle } from 'lucide-react';
+import { Calendar as CalendarIcon, AlertTriangle } from 'lucide-react';
 import { format, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useBatches } from '@/hooks/useBatches';
@@ -103,16 +103,12 @@ export const ScheduleBatchDialog = ({ open, onOpenChange, onSchedule, batchNumbe
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="time" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
+            <Label className="flex items-center gap-2">
               Horário do Envio
             </Label>
-            <Input
-              id="time"
-              type="time"
+            <TimeSelect24h
               value={selectedTime}
-              onChange={(e) => setSelectedTime(e.target.value)}
-              className="w-full"
+              onChange={setSelectedTime}
             />
           </div>
 
