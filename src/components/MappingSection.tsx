@@ -35,42 +35,56 @@ export const MappingSection = () => {
   const [localSheetMeta, setLocalSheetMeta] = useState<SheetMeta | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // Carregar dados do IndexedDB na inicialização
+  // Carregar dados do IndexedDB na inicialização com retry
   useEffect(() => {
     const loadData = async () => {
       setIsLoadingData(true);
       
-      // Tentar IndexedDB primeiro (suporta dados grandes)
-      const idbData = await getFromIndexedDB<ParsedData>('parsed_data');
-      if (idbData) {
-        console.log('[MappingSection] Loaded data from IndexedDB');
-        setLocalParsedData(idbData);
-      } else {
-        // Fallback para sessionStorage
-        try {
-          const saved = sessionStorage.getItem('session_parsed_data');
-          if (saved) {
-            console.log('[MappingSection] Loaded data from sessionStorage');
-            setLocalParsedData(JSON.parse(saved));
+      const maxAttempts = 15;
+      const baseDelay = 300; // ms
+      let attempts = 0;
+      
+      // Retry loop para aguardar dados serem persistidos
+      while (attempts < maxAttempts) {
+        const idbData = await getFromIndexedDB<ParsedData>('parsed_data');
+        
+        if (idbData) {
+          console.log(`[MappingSection] Data loaded from IndexedDB after ${attempts + 1} attempt(s)`);
+          setLocalParsedData(idbData);
+          
+          // Carregar sheetMeta também
+          const idbMeta = await getFromIndexedDB<SheetMeta>('sheet_meta');
+          if (idbMeta) {
+            setLocalSheetMeta(idbMeta);
           }
-        } catch (e) {
-          console.error('[MappingSection] Error parsing sessionStorage:', e);
+          
+          setIsLoadingData(false);
+          return;
+        }
+        
+        attempts++;
+        
+        if (attempts < maxAttempts) {
+          console.log(`[MappingSection] No data yet, retry ${attempts}/${maxAttempts}...`);
+          await new Promise(r => setTimeout(r, baseDelay * Math.min(attempts, 5)));
         }
       }
-
-      // Carregar sheetMeta
-      const idbMeta = await getFromIndexedDB<SheetMeta>('sheet_meta');
-      if (idbMeta) {
-        setLocalSheetMeta(idbMeta);
-      } else {
-        const savedMeta = sessionStorage.getItem('session_sheet_meta');
-        if (savedMeta) {
-          try {
+      
+      // Se após todas as tentativas não encontrou no IndexedDB, tentar sessionStorage
+      console.log('[MappingSection] IndexedDB empty, trying sessionStorage fallback...');
+      try {
+        const saved = sessionStorage.getItem('session_parsed_data');
+        if (saved) {
+          console.log('[MappingSection] Loaded data from sessionStorage');
+          setLocalParsedData(JSON.parse(saved));
+          
+          const savedMeta = sessionStorage.getItem('session_sheet_meta');
+          if (savedMeta) {
             setLocalSheetMeta(JSON.parse(savedMeta));
-          } catch (e) {
-            console.error('[MappingSection] Error parsing sheetMeta:', e);
           }
         }
+      } catch (e) {
+        console.error('[MappingSection] Error parsing sessionStorage:', e);
       }
 
       setIsLoadingData(false);
@@ -202,9 +216,12 @@ export const MappingSection = () => {
   // Mostrar loading enquanto carrega dados do IndexedDB
   if (isLoadingData) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Carregando dados...</p>
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <div className="text-center">
+          <p className="text-base font-medium text-foreground">Carregando dados da planilha...</p>
+          <p className="text-sm text-muted-foreground mt-1">Isso pode levar alguns segundos para planilhas grandes</p>
+        </div>
       </div>
     );
   }

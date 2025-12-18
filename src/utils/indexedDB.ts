@@ -29,19 +29,26 @@ export const saveToIndexedDB = async (key: string, data: unknown): Promise<boole
     return new Promise((resolve) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       const store = tx.objectStore(STORE_NAME);
-      const request = store.put(data, key);
+      store.put(data, key);
       
-      request.onsuccess = () => {
-        console.log(`[IndexedDB] Saved ${key} successfully`);
+      // CRITICAL: Only resolve when transaction is COMPLETE (data actually persisted)
+      tx.oncomplete = () => {
+        console.log(`[IndexedDB] Saved ${key} - transaction complete`);
+        db.close();
         resolve(true);
       };
       
-      request.onerror = () => {
-        console.error(`[IndexedDB] Error saving ${key}:`, request.error);
+      tx.onerror = () => {
+        console.error(`[IndexedDB] Transaction error for ${key}:`, tx.error);
+        db.close();
         resolve(false);
       };
       
-      tx.oncomplete = () => db.close();
+      tx.onabort = () => {
+        console.error(`[IndexedDB] Transaction aborted for ${key}`);
+        db.close();
+        resolve(false);
+      };
     });
   } catch (error) {
     console.error('[IndexedDB] Error opening database:', error);
