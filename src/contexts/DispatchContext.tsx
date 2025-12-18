@@ -19,7 +19,22 @@ interface DispatchContextType {
   isLoading: boolean;
 }
 
-const DispatchContext = createContext<DispatchContextType | undefined>(undefined);
+// Manter referência estável do contexto para evitar problemas com HMR
+// Durante HMR, o módulo é recarregado mas queremos manter o mesmo objeto de contexto
+const CONTEXT_KEY = '__DISPATCH_CONTEXT__';
+
+const getStableContext = (): React.Context<DispatchContextType | undefined> => {
+  // Usar window para persistir o contexto entre reloads do módulo (HMR)
+  const win = window as unknown as { [CONTEXT_KEY]?: React.Context<DispatchContextType | undefined> };
+  
+  if (!win[CONTEXT_KEY]) {
+    win[CONTEXT_KEY] = createContext<DispatchContextType | undefined>(undefined);
+  }
+  
+  return win[CONTEXT_KEY];
+};
+
+const DispatchContext = getStableContext();
 
 const STORAGE_KEYS = {
   CURRENT_CAMPAIGN_ID: 'current_campaign_id',
@@ -231,131 +246,10 @@ export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 };
 
-let fallbackDispatchContext: DispatchContextType | null = null;
-
-const getFallbackDispatchContext = (): DispatchContextType => {
-  if (fallbackDispatchContext) return fallbackDispatchContext;
-
-  const getCampaignId = () => {
-    try {
-      return localStorage.getItem(STORAGE_KEYS.CURRENT_CAMPAIGN_ID) || null;
-    } catch {
-      return null;
-    }
-  };
-
-  fallbackDispatchContext = {
-    parsedData: null,
-    setParsedData: async (data) => {
-      if (data) {
-        // Persist for /map to consume even without provider state
-        const saved = await saveToIndexedDB(IDB_KEYS.PARSED_DATA, data);
-        if (!saved) {
-          try {
-            sessionStorage.setItem(STORAGE_KEYS.PARSED_DATA, JSON.stringify(data));
-          } catch {
-            return false;
-          }
-        }
-        return true;
-      }
-
-      try {
-        await clearFromIndexedDB(IDB_KEYS.PARSED_DATA);
-      } catch {
-        // ignore
-      }
-      try {
-        sessionStorage.removeItem(STORAGE_KEYS.PARSED_DATA);
-      } catch {
-        // ignore
-      }
-      return true;
-    },
-
-    sheetMeta: null,
-    setSheetMeta: (meta) => {
-      if (meta) {
-        saveToIndexedDB(IDB_KEYS.SHEET_META, meta).catch(() => {});
-        try {
-          sessionStorage.setItem(STORAGE_KEYS.SHEET_META, JSON.stringify(meta));
-        } catch {
-          // ignore
-        }
-        return;
-      }
-
-      clearFromIndexedDB(IDB_KEYS.SHEET_META).catch(() => {});
-      try {
-        sessionStorage.removeItem(STORAGE_KEYS.SHEET_META);
-      } catch {
-        // ignore
-      }
-    },
-
-    columnMapping: null,
-    setColumnMapping: (mapping) => {
-      try {
-        if (mapping) {
-          sessionStorage.setItem(STORAGE_KEYS.COLUMN_MAPPING, JSON.stringify(mapping));
-        } else {
-          sessionStorage.removeItem(STORAGE_KEYS.COLUMN_MAPPING);
-        }
-      } catch {
-        // ignore
-      }
-    },
-
-    currentCampaignId: getCampaignId(),
-    setCurrentCampaignId: (id) => {
-      try {
-        if (id) {
-          localStorage.setItem(STORAGE_KEYS.CURRENT_CAMPAIGN_ID, id);
-        } else {
-          localStorage.removeItem(STORAGE_KEYS.CURRENT_CAMPAIGN_ID);
-        }
-      } catch {
-        // ignore
-      }
-    },
-
-    reset: async () => {
-      try {
-        await clearFromIndexedDB(IDB_KEYS.PARSED_DATA);
-        await clearFromIndexedDB(IDB_KEYS.SHEET_META);
-      } catch {
-        // ignore
-      }
-
-      try {
-        sessionStorage.removeItem(STORAGE_KEYS.PARSED_DATA);
-        sessionStorage.removeItem(STORAGE_KEYS.SHEET_META);
-        sessionStorage.removeItem(STORAGE_KEYS.COLUMN_MAPPING);
-      } catch {
-        // ignore
-      }
-
-      try {
-        localStorage.removeItem(STORAGE_KEYS.CURRENT_CAMPAIGN_ID);
-      } catch {
-        // ignore
-      }
-    },
-
-    isLoading: false,
-  };
-
-  return fallbackDispatchContext;
-};
-
 export const useDispatch = () => {
   const context = useContext(DispatchContext);
   if (context === undefined) {
-    if (import.meta.env.DEV) {
-      throw new Error('useDispatch must be used within a DispatchProvider');
-    }
-    console.error('[DispatchContext] Missing DispatchProvider - using fallback context');
-    return getFallbackDispatchContext();
+    throw new Error('useDispatch must be used within a DispatchProvider');
   }
   return context;
 };
