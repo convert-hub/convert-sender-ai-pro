@@ -21,6 +21,7 @@ import { CampaignSelector } from './CampaignSelector';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { useBatches } from '@/hooks/useBatches';
 import { toast as sonnerToast } from 'sonner';
+import { getFromIndexedDB } from '@/utils/indexedDB';
 import type { ParsedData, SheetMeta } from '@/types/dispatch';
 
 export const MappingSection = () => {
@@ -29,35 +30,56 @@ export const MappingSection = () => {
   const { updateStats } = useUserSettings();
   const { addBatch } = useBatches();
   
-  // ✅ SOLUÇÃO DEFINITIVA: Estado local inicializado SINCRONAMENTE do sessionStorage
-  const [localParsedData] = useState<ParsedData | null>(() => {
-    const saved = sessionStorage.getItem('session_parsed_data');
-    if (saved) {
-      try {
-        console.log('[MappingSection] Inicializando dados SINCRONAMENTE do sessionStorage');
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('[MappingSection] Erro ao parsear sessionStorage:', e);
-        return null;
-      }
-    }
-    console.log('[MappingSection] Nenhum dado no sessionStorage');
-    return null;
-  });
-  
-  const [localSheetMeta] = useState<SheetMeta | null>(() => {
-    const saved = sessionStorage.getItem('session_sheet_meta');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
-  });
+  // Estado para dados carregados do IndexedDB
+  const [localParsedData, setLocalParsedData] = useState<ParsedData | null>(null);
+  const [localSheetMeta, setLocalSheetMeta] = useState<SheetMeta | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // ✅ Usar dados locais OU do contexto (fallback duplo)
+  // Carregar dados do IndexedDB na inicialização
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoadingData(true);
+      
+      // Tentar IndexedDB primeiro (suporta dados grandes)
+      const idbData = await getFromIndexedDB<ParsedData>('parsed_data');
+      if (idbData) {
+        console.log('[MappingSection] Loaded data from IndexedDB');
+        setLocalParsedData(idbData);
+      } else {
+        // Fallback para sessionStorage
+        try {
+          const saved = sessionStorage.getItem('session_parsed_data');
+          if (saved) {
+            console.log('[MappingSection] Loaded data from sessionStorage');
+            setLocalParsedData(JSON.parse(saved));
+          }
+        } catch (e) {
+          console.error('[MappingSection] Error parsing sessionStorage:', e);
+        }
+      }
+
+      // Carregar sheetMeta
+      const idbMeta = await getFromIndexedDB<SheetMeta>('sheet_meta');
+      if (idbMeta) {
+        setLocalSheetMeta(idbMeta);
+      } else {
+        const savedMeta = sessionStorage.getItem('session_sheet_meta');
+        if (savedMeta) {
+          try {
+            setLocalSheetMeta(JSON.parse(savedMeta));
+          } catch (e) {
+            console.error('[MappingSection] Error parsing sheetMeta:', e);
+          }
+        }
+      }
+
+      setIsLoadingData(false);
+    };
+
+    loadData();
+  }, []);
+
+  // Usar dados locais OU do contexto (fallback duplo)
   const effectiveData = localParsedData || parsedData;
   const effectiveMeta = localSheetMeta || sheetMeta;
   
@@ -67,24 +89,24 @@ export const MappingSection = () => {
   const [extraCols, setExtraCols] = useState<string[]>([]);
   const [batchSize, setBatchSize] = useState(50);
 
-  // ✅ Sincronizar com contexto se necessário (uma única vez na montagem)
+  // Sincronizar com contexto se necessário (uma única vez)
   useEffect(() => {
     if (localParsedData && !parsedData) {
-      console.log('[MappingSection] Sincronizando dados locais com contexto');
+      console.log('[MappingSection] Syncing local data with context');
       setParsedData(localParsedData);
     }
     if (localSheetMeta && !sheetMeta) {
       setSheetMeta(localSheetMeta);
     }
-  }, []); // Rodar apenas na montagem
+  }, [localParsedData, localSheetMeta, parsedData, sheetMeta, setParsedData, setSheetMeta]);
 
-  // ✅ Redirecionar se não houver dados em nenhum lugar
+  // Redirecionar se não houver dados após carregamento
   useEffect(() => {
-    if (!effectiveData) {
-      console.warn('[MappingSection] Sem dados disponíveis, redirecionando para home...');
+    if (!isLoadingData && !effectiveData) {
+      console.warn('[MappingSection] No data available, redirecting to home...');
       navigate('/');
     }
-  }, [effectiveData, navigate]);
+  }, [isLoadingData, effectiveData, navigate]);
 
   // Auto-detect columns quando temos dados
   useEffect(() => {
@@ -177,7 +199,17 @@ export const MappingSection = () => {
     }
   };
 
-  // ✅ Se não tem dados, mostrar loading enquanto redireciona
+  // Mostrar loading enquanto carrega dados do IndexedDB
+  if (isLoadingData) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Carregando dados...</p>
+      </div>
+    );
+  }
+
+  // Se não tem dados, mostrar loading enquanto redireciona
   if (!effectiveData) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">

@@ -43,7 +43,18 @@ export const ImportSection = () => {
         throw new Error("Formato não suportado. Use .csv ou .xlsx");
       }
 
-      setParsedData(data);
+      // Usar IndexedDB via contexto (suporta dados grandes)
+      const saved = await setParsedData(data);
+      
+      if (!saved) {
+        toast({
+          title: 'Erro de armazenamento',
+          description: 'Planilha muito grande. Tente dividir em partes menores (máx. ~10.000 contatos).',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       setSheetMeta({
         origin: "upload",
         filename_or_url: file.name,
@@ -54,37 +65,15 @@ export const ImportSection = () => {
       await incrementStats('uploads_total', 1);
       await incrementStats('rows_total', data.rows.length);
 
-
       toast({
         title: "Arquivo carregado!",
         description: `${data.rows.length} linhas detectadas`,
       });
 
-      // Delay aumentado e verificação dupla de persistência antes de navegar
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Pequeno delay para garantir que o IndexedDB finalizou
+      await new Promise(resolve => setTimeout(resolve, 50));
+      navigate("/map");
       
-      // Primeira verificação
-      let savedData = sessionStorage.getItem('session_parsed_data');
-      if (!savedData) {
-        // Tentar salvar manualmente novamente
-        console.warn('[ImportSection] Dados não encontrados, tentando salvar novamente');
-        sessionStorage.setItem('session_parsed_data', JSON.stringify(data));
-        await new Promise(resolve => setTimeout(resolve, 50));
-        savedData = sessionStorage.getItem('session_parsed_data');
-      }
-      
-      // Verificação final e navegação
-      if (savedData) {
-        console.log('[ImportSection] Navegando para /map com dados confirmados');
-        navigate("/map");
-      } else {
-        console.error('[ImportSection] Data not saved to sessionStorage após retry');
-        toast({
-          title: 'Erro',
-          description: 'Falha ao salvar dados. Tente novamente.',
-          variant: 'destructive',
-        });
-      }
     } catch (error) {
       toast({
         title: "Erro ao processar arquivo",
@@ -119,7 +108,18 @@ export const ImportSection = () => {
     try {
       const data = await parseGoogleSheetsURL(sheetUrl);
 
-      setParsedData(data);
+      // Usar IndexedDB via contexto (suporta dados grandes)
+      const saved = await setParsedData(data);
+      
+      if (!saved) {
+        toast({
+          title: 'Erro de armazenamento',
+          description: 'Planilha muito grande. Tente dividir em partes menores (máx. ~10.000 contatos).',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       setSheetMeta({
         origin: "url",
         filename_or_url: sheetUrl,
@@ -130,37 +130,15 @@ export const ImportSection = () => {
       await incrementStats('uploads_total', 1);
       await incrementStats('rows_total', data.rows.length);
 
-
       toast({
         title: "Planilha carregada!",
         description: `${data.rows.length} linhas detectadas`,
       });
 
-      // Delay aumentado e verificação dupla de persistência antes de navegar
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Pequeno delay para garantir que o IndexedDB finalizou
+      await new Promise(resolve => setTimeout(resolve, 50));
+      navigate("/map");
       
-      // Primeira verificação
-      let savedData = sessionStorage.getItem('session_parsed_data');
-      if (!savedData) {
-        // Tentar salvar manualmente novamente
-        console.warn('[ImportSection] Dados não encontrados, tentando salvar novamente');
-        sessionStorage.setItem('session_parsed_data', JSON.stringify(data));
-        await new Promise(resolve => setTimeout(resolve, 50));
-        savedData = sessionStorage.getItem('session_parsed_data');
-      }
-      
-      // Verificação final e navegação
-      if (savedData) {
-        console.log('[ImportSection] Navegando para /map com dados confirmados');
-        navigate("/map");
-      } else {
-        console.error('[ImportSection] Data not saved to sessionStorage após retry');
-        toast({
-          title: 'Erro',
-          description: 'Falha ao salvar dados. Tente novamente.',
-          variant: 'destructive',
-        });
-      }
     } catch (error) {
       toast({
         title: "Erro ao carregar planilha",
@@ -172,7 +150,7 @@ export const ImportSection = () => {
     }
   };
 
-  const handleExampleData = () => {
+  const handleExampleData = async () => {
     if (!currentCampaignId) {
       toast({
         title: 'Selecione uma campanha',
@@ -183,7 +161,17 @@ export const ImportSection = () => {
     }
 
     const data = generateExampleData();
-    setParsedData(data);
+    
+    const saved = await setParsedData(data);
+    if (!saved) {
+      toast({
+        title: 'Erro de armazenamento',
+        description: 'Falha ao salvar dados de exemplo.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSheetMeta({
       origin: "upload",
       filename_or_url: "exemplo-120-contatos.csv",
@@ -194,37 +182,14 @@ export const ImportSection = () => {
     incrementStats('uploads_total', 1);
     incrementStats('rows_total', data.rows.length);
 
-
     toast({
       title: "Dados de exemplo carregados!",
       description: "120 contatos fictícios prontos para teste",
     });
 
-    // Delay aumentado e verificação dupla de persistência antes de navegar
-    setTimeout(async () => {
-      // Primeira verificação
-      let savedData = sessionStorage.getItem('session_parsed_data');
-      if (!savedData) {
-        // Tentar salvar manualmente novamente
-        console.warn('[ImportSection] Dados não encontrados, tentando salvar novamente');
-        sessionStorage.setItem('session_parsed_data', JSON.stringify(data));
-        await new Promise(resolve => setTimeout(resolve, 50));
-        savedData = sessionStorage.getItem('session_parsed_data');
-      }
-      
-      // Verificação final e navegação
-      if (savedData) {
-        console.log('[ImportSection] Navegando para /map com dados confirmados');
-        navigate("/map");
-      } else {
-        console.error('[ImportSection] Data not saved to sessionStorage após retry');
-        toast({
-          title: 'Erro',
-          description: 'Falha ao salvar dados. Tente novamente.',
-          variant: 'destructive',
-        });
-      }
-    }, 100);
+    // Pequeno delay e navegação
+    await new Promise(resolve => setTimeout(resolve, 50));
+    navigate("/map");
   };
 
   return (

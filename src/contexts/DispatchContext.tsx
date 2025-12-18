@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ParsedData, ColumnMapping, SheetMeta } from '@/types/dispatch';
+import { saveToIndexedDB, getFromIndexedDB, clearFromIndexedDB } from '@/utils/indexedDB';
 
 interface DispatchContextType {
   // Temporary session data only
   parsedData: ParsedData | null;
-  setParsedData: (data: ParsedData | null) => void;
+  setParsedData: (data: ParsedData | null) => Promise<boolean>;
   
   sheetMeta: SheetMeta | null;
   setSheetMeta: (meta: SheetMeta | null) => void;
@@ -15,7 +16,7 @@ interface DispatchContextType {
   currentCampaignId: string | null;
   setCurrentCampaignId: (id: string | null) => void;
   
-  reset: () => void;
+  reset: () => Promise<void>;
 }
 
 const DispatchContext = createContext<DispatchContextType | undefined>(undefined);
@@ -27,24 +28,14 @@ const STORAGE_KEYS = {
   COLUMN_MAPPING: 'session_column_mapping',
 };
 
+const IDB_KEYS = {
+  PARSED_DATA: 'parsed_data',
+  SHEET_META: 'sheet_meta',
+};
+
 export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Temporary session data com persistência em sessionStorage
-  const [parsedData, setParsedDataInternal] = useState<ParsedData | null>(() => {
-    try {
-      const saved = sessionStorage.getItem(STORAGE_KEYS.PARSED_DATA);
-      console.log('[DispatchContext] Initializing parsedData from sessionStorage:', !!saved);
-      return saved ? JSON.parse(saved) : null;
-    } catch (e) {
-      console.error('[DispatchContext] Error parsing sessionStorage:', e);
-      return null;
-    }
-  });
-  
-  const [sheetMeta, setSheetMetaInternal] = useState<SheetMeta | null>(() => {
-    const saved = sessionStorage.getItem(STORAGE_KEYS.SHEET_META);
-    return saved ? JSON.parse(saved) : null;
-  });
-  
+  const [parsedData, setParsedDataInternal] = useState<ParsedData | null>(null);
+  const [sheetMeta, setSheetMetaInternal] = useState<SheetMeta | null>(null);
   const [columnMapping, setColumnMappingInternal] = useState<ColumnMapping | null>(() => {
     const saved = sessionStorage.getItem(STORAGE_KEYS.COLUMN_MAPPING);
     return saved ? JSON.parse(saved) : null;
@@ -54,20 +45,82 @@ export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return saved || null;
   });
 
-  // Wrappers para persistir dados no sessionStorage
-  const setParsedData = (data: ParsedData | null) => {
+  // Carregar dados do IndexedDB na inicialização
+  useEffect(() => {
+    const loadFromStorage = async () => {
+      // Tentar IndexedDB primeiro
+      const idbData = await getFromIndexedDB<ParsedData>(IDB_KEYS.PARSED_DATA);
+      if (idbData) {
+        console.log('[DispatchContext] Loaded parsedData from IndexedDB');
+        setParsedDataInternal(idbData);
+      } else {
+        // Fallback para sessionStorage (dados pequenos ou browser antigo)
+        try {
+          const saved = sessionStorage.getItem(STORAGE_KEYS.PARSED_DATA);
+          if (saved) {
+            console.log('[DispatchContext] Loaded parsedData from sessionStorage');
+            setParsedDataInternal(JSON.parse(saved));
+          }
+        } catch (e) {
+          console.error('[DispatchContext] Error parsing sessionStorage:', e);
+        }
+      }
+
+      // Carregar sheetMeta
+      const idbMeta = await getFromIndexedDB<SheetMeta>(IDB_KEYS.SHEET_META);
+      if (idbMeta) {
+        setSheetMetaInternal(idbMeta);
+      } else {
+        const savedMeta = sessionStorage.getItem(STORAGE_KEYS.SHEET_META);
+        if (savedMeta) {
+          setSheetMetaInternal(JSON.parse(savedMeta));
+        }
+      }
+    };
+
+    loadFromStorage();
+  }, []);
+
+  // Função async para salvar dados - usa IndexedDB para dados grandes
+  const setParsedData = async (data: ParsedData | null): Promise<boolean> => {
     if (data) {
-      sessionStorage.setItem(STORAGE_KEYS.PARSED_DATA, JSON.stringify(data));
+      // Sempre usar IndexedDB como armazenamento principal (suporta dados grandes)
+      const saved = await saveToIndexedDB(IDB_KEYS.PARSED_DATA, data);
+      
+      if (saved) {
+        console.log('[DispatchContext] Data saved to IndexedDB successfully');
+        // Limpar sessionStorage se existir dados antigos
+        sessionStorage.removeItem(STORAGE_KEYS.PARSED_DATA);
+      } else {
+        // Fallback: tentar sessionStorage (pode falhar com dados grandes)
+        console.warn('[DispatchContext] IndexedDB failed, trying sessionStorage...');
+        try {
+          sessionStorage.setItem(STORAGE_KEYS.PARSED_DATA, JSON.stringify(data));
+        } catch (error) {
+          const storageError = error as { name?: string };
+          if (storageError.name === 'QuotaExceededError') {
+            console.error('[DispatchContext] QuotaExceededError - data too large');
+            return false;
+          }
+          throw error;
+        }
+      }
     } else {
+      await clearFromIndexedDB(IDB_KEYS.PARSED_DATA);
       sessionStorage.removeItem(STORAGE_KEYS.PARSED_DATA);
     }
+    
     setParsedDataInternal(data);
+    return true;
   };
 
   const setSheetMeta = (meta: SheetMeta | null) => {
     if (meta) {
+      // Salvar em ambos os storages para compatibilidade
+      saveToIndexedDB(IDB_KEYS.SHEET_META, meta);
       sessionStorage.setItem(STORAGE_KEYS.SHEET_META, JSON.stringify(meta));
     } else {
+      clearFromIndexedDB(IDB_KEYS.SHEET_META);
       sessionStorage.removeItem(STORAGE_KEYS.SHEET_META);
     }
     setSheetMetaInternal(meta);
@@ -91,13 +144,15 @@ export const DispatchProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [currentCampaignId]);
 
-  const reset = () => {
-    setParsedData(null);
-    setSheetMeta(null);
-    setColumnMapping(null);
+  const reset = async () => {
+    await clearFromIndexedDB(IDB_KEYS.PARSED_DATA);
+    await clearFromIndexedDB(IDB_KEYS.SHEET_META);
     sessionStorage.removeItem(STORAGE_KEYS.PARSED_DATA);
     sessionStorage.removeItem(STORAGE_KEYS.SHEET_META);
     sessionStorage.removeItem(STORAGE_KEYS.COLUMN_MAPPING);
+    setParsedDataInternal(null);
+    setSheetMetaInternal(null);
+    setColumnMappingInternal(null);
   };
 
   return (
