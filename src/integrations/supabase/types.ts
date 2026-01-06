@@ -305,6 +305,11 @@ export type Database = {
           id: string
           last_dispatch_date: string | null
           stats: Json | null
+          uazapi_connected_phone: string | null
+          uazapi_connection_status: string | null
+          uazapi_instance_name: string | null
+          uazapi_instance_token: string | null
+          uazapi_last_checked: string | null
           updated_at: string
           user_id: string
           webhook_url: string | null
@@ -316,6 +321,11 @@ export type Database = {
           id?: string
           last_dispatch_date?: string | null
           stats?: Json | null
+          uazapi_connected_phone?: string | null
+          uazapi_connection_status?: string | null
+          uazapi_instance_name?: string | null
+          uazapi_instance_token?: string | null
+          uazapi_last_checked?: string | null
           updated_at?: string
           user_id: string
           webhook_url?: string | null
@@ -327,6 +337,11 @@ export type Database = {
           id?: string
           last_dispatch_date?: string | null
           stats?: Json | null
+          uazapi_connected_phone?: string | null
+          uazapi_connection_status?: string | null
+          uazapi_instance_name?: string | null
+          uazapi_instance_token?: string | null
+          uazapi_last_checked?: string | null
           updated_at?: string
           user_id?: string
           webhook_url?: string | null
