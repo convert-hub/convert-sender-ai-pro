@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.process-scheduled-batches]
 verify_jwt = false
+
+[functions.uazapi-manager]
+verify_jwt = false

@@ -16,6 +16,7 @@ import { validateWebhookUrl } from '@/utils/validation';
 import { testWebhook } from '@/utils/webhook';
 import { DailyLimitIndicator } from '@/components/DailyLimitIndicator';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
+import { WhatsAppConnection } from '@/components/WhatsAppConnection';
 
 const DEFAULT_WEBHOOK_URL = 'https://n8n.converthub.com.br/webhook/disparos-precatorizei';
 
@@ -167,6 +168,9 @@ export const SettingsSection = () => {
 
         {/* Daily Limit Indicator */}
         <DailyLimitIndicator />
+
+        {/* WhatsApp Connection */}
+        <WhatsAppConnection />
 
         {/* Template Configuration Card - Admin Only */}
         {isAdmin && (
