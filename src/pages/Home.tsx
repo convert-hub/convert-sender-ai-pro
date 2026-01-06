@@ -1,27 +1,10 @@
 import { Layout } from "@/components/Layout";
-import { StatsOverview } from "@/components/StatsOverview";
+import { HomeWhatsAppStatus } from "@/components/HomeWhatsAppStatus";
 import { QuickActions } from "@/components/QuickActions";
-import { RecentHistory } from "@/components/RecentHistory";
+import { QuickStats } from "@/components/QuickStats";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import {
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
 import { useDispatch } from "@/contexts/DispatchContext";
-import { useHistory } from "@/hooks/useHistory";
 import { useBatches } from "@/hooks/useBatches";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import logo from "@/assets/logo.png";
 import { useNavigate } from "react-router-dom";
 import { Grid3x3, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -30,74 +13,28 @@ import { toast } from "@/hooks/use-toast";
 
 const Home = () => {
   const { reset } = useDispatch();
-  const { history } = useHistory();
   const { batches } = useBatches();
   const navigate = useNavigate();
 
-  // Process history for success rate over time
-  const successRateData = history
-    .slice()
-    .reverse()
-    .map((entry, index) => ({
-      id: index,
-      date: format(parseISO(entry.timestamp), "dd/MM HH:mm", { locale: ptBR }),
-      taxa: entry.status === "success" ? 100 : 0,
-      contatos: entry.contacts_count,
-    }));
-
-  // Calculate moving average for smoother line
-  const movingAvg = successRateData.map((item, idx, arr) => {
-    const window = 3;
-    const start = Math.max(0, idx - window + 1);
-    const slice = arr.slice(start, idx + 1);
-    const avg = slice.reduce((sum, i) => sum + i.taxa, 0) / slice.length;
-    return { ...item, taxa: Math.round(avg) };
-  });
-
-  // Distribution by status
-  const statusData = [
-    {
-      name: "Sucesso",
-      value: history.filter((h) => h.status === "success").length,
-      color: "hsl(var(--success))",
-    },
-    {
-      name: "Erro",
-      value: history.filter((h) => h.status === "error").length,
-      color: "hsl(var(--destructive))",
-    },
-  ].filter((item) => item.value > 0);
-
-  const chartConfig = {
-    taxa: {
-      label: "Taxa de Sucesso",
-      color: "hsl(var(--primary))",
-    },
-  };
+  const readyBatches = batches.filter(b => b.status === 'ready');
+  const totalContacts = readyBatches.reduce((sum, b) => sum + b.contacts.length, 0);
 
   return (
     <Layout>
-      <div className="space-y-8">
-        {/* Hero Section */}
-        <div className="text-center space-y-4 py-6">
-          <div className="flex justify-center animate-fade-in">
-            <img src={logo} alt="Convert Sender A.I." className="h-16" />
-          </div>
-          <p className="text-muted-foreground text-lg animate-fade-in" style={{ animationDelay: "100ms" }}>
-            Seus disparos em massa feito de forma mais segura e inteligente
-          </p>
-        </div>
+      <div className="space-y-6">
+        {/* WhatsApp Connection Status - Priority */}
+        <HomeWhatsAppStatus />
 
-        {/* Stats Overview */}
-        <StatsOverview />
+        {/* Quick Stats */}
+        <QuickStats />
 
         {/* Quick Actions */}
         <QuickActions />
 
         {/* Pending Batches Card */}
-        {batches.length > 0 && (
-          <Card className="border-primary/50 bg-primary/5 animate-fade-in" style={{ animationDelay: "150ms" }}>
-            <CardHeader>
+        {readyBatches.length > 0 && (
+          <Card className="border-primary/50 bg-primary/5 animate-fade-in">
+            <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2">
                 <Grid3x3 className="h-5 w-5" />
                 Blocos Prontos para Envio
@@ -107,10 +44,10 @@ const Home = () => {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">
-                    Você tem {batches.filter(b => b.status === 'ready').length} blocos prontos
+                    Você tem {readyBatches.length} blocos prontos
                   </span>
                   <Badge variant="secondary">
-                    {batches.reduce((sum, b) => sum + b.contacts.length, 0)} contatos
+                    {totalContacts} contatos
                   </Badge>
                 </div>
                 
@@ -138,82 +75,6 @@ const Home = () => {
             </CardContent>
           </Card>
         )}
-
-        {/* Charts Grid */}
-        {history.length > 0 && (
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Success Rate Chart */}
-            <Card className="animate-fade-in" style={{ animationDelay: "200ms" }}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">📈 Taxa de Sucesso ao Longo do Tempo</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {movingAvg.length > 0 ? (
-                  <ChartContainer config={chartConfig} className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={movingAvg}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} domain={[0, 100]} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Line
-                          type="monotone"
-                          dataKey="taxa"
-                          stroke="hsl(var(--primary))"
-                          strokeWidth={2}
-                          dot={{ fill: "hsl(var(--primary))" }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                ) : (
-                  <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                    Dados insuficientes
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Status Distribution Chart */}
-            <Card className="animate-fade-in" style={{ animationDelay: "300ms" }}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">🎯 Distribuição por Status</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {statusData.length > 0 ? (
-                  <ChartContainer config={chartConfig} className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Pie
-                          data={statusData}
-                          dataKey="value"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={100}
-                          label={(entry) => `${entry.name}: ${entry.value}`}
-                        >
-                          {statusData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                ) : (
-                  <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                    Nenhum dado disponível
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Recent History */}
-        <RecentHistory limit={5} />
       </div>
     </Layout>
   );
