@@ -10,12 +10,18 @@ interface RequestBody {
   instanceName?: string;
 }
 
-const buildUazapiHeaders = (token: string, withJson = false) => ({
+// Headers para endpoints ADMINISTRATIVOS (create instance, delete global)
+const buildAdminHeaders = (adminToken: string, withJson = false) => ({
   Accept: 'application/json',
   ...(withJson ? { 'Content-Type': 'application/json' } : {}),
-  // Some UAZAPI deployments expect `token`, others expect `Authorization: Bearer ...`
-  token,
-  Authorization: `Bearer ${token}`,
+  admintoken: adminToken,
+});
+
+// Headers para endpoints REGULARES da instância (connect, status, disconnect)
+const buildInstanceHeaders = (instanceToken: string, withJson = false) => ({
+  Accept: 'application/json',
+  ...(withJson ? { 'Content-Type': 'application/json' } : {}),
+  token: instanceToken,
 });
 
 const readJsonSafe = async (resp: Response): Promise<any> => {
@@ -129,7 +135,7 @@ Deno.serve(async (req) => {
 
         const createResponse = await fetch(`${uazapiBaseUrl}/instance/init`, {
           method: 'POST',
-          headers: buildUazapiHeaders(uazapiAdminToken, true),
+          headers: buildAdminHeaders(uazapiAdminToken, true),
           body: JSON.stringify({
             name: instanceName,
             systemName: 'convert-sender',
@@ -210,7 +216,7 @@ Deno.serve(async (req) => {
 
         const qrResponse = await fetch(`${uazapiBaseUrl}/instance/connect`, {
           method: 'POST',
-          headers: buildUazapiHeaders(instanceToken, true),
+          headers: buildInstanceHeaders(instanceToken, true),
           body: JSON.stringify({}),
         });
 
@@ -257,7 +263,7 @@ Deno.serve(async (req) => {
 
         const statusResponse = await fetch(`${uazapiBaseUrl}/instance/status`, {
           method: 'GET',
-          headers: buildUazapiHeaders(instanceToken),
+          headers: buildInstanceHeaders(instanceToken),
         });
 
         const statusData = await readJsonSafe(statusResponse);
@@ -308,7 +314,7 @@ Deno.serve(async (req) => {
 
         const disconnectResponse = await fetch(`${uazapiBaseUrl}/instance/disconnect`, {
           method: 'POST',
-          headers: buildUazapiHeaders(instanceToken),
+          headers: buildInstanceHeaders(instanceToken),
         });
 
         const disconnectData = await readJsonSafe(disconnectResponse);
@@ -344,7 +350,7 @@ Deno.serve(async (req) => {
 
         const deleteResponse = await fetch(`${uazapiBaseUrl}/instance`, {
           method: 'DELETE',
-          headers: buildUazapiHeaders(instanceToken),
+          headers: buildInstanceHeaders(instanceToken),
         });
 
         const deleteData = await readJsonSafe(deleteResponse);
