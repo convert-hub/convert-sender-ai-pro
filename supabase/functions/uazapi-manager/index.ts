@@ -276,23 +276,27 @@ Deno.serve(async (req) => {
           return match ? match[1] : jid;
         };
 
+        // Para UAZAPI, o indicador correto é:
+        // 1. status.loggedIn === true (principal - indica QR escaneado)
+        // 2. OU instance.status === 'connected' (secundário)
+        // 3. OU status.jid não é null (indica sessão ativa com número)
+        // NOTA: status.connected apenas indica socket WebSocket aberto, NÃO login!
         const isConnected =
-          // Estrutura aninhada da UAZAPI (prioritária)
-          statusData.status?.connected === true ||
           statusData.status?.loggedIn === true ||
           statusData.instance?.status === 'connected' ||
-          // Fallbacks para outras estruturas
-          statusData.connected === true ||
-          statusData.state === 'open' ||
+          (statusData.status?.connected === true && statusData.status?.jid !== null) ||
+          // Fallback para outras estruturas (não-UAZAPI)
           statusData.state === 'connected';
 
-        const connectedPhone = 
-          statusData.instance?.owner ||
-          extractPhoneFromJid(statusData.status?.jid) ||
-          statusData.phone || 
-          statusData.me?.id || 
-          statusData.jid || 
-          null;
+        // Só extrair telefone se realmente conectado
+        // instance.owner mantém valor antigo mesmo desconectado
+        const connectedPhone = isConnected 
+          ? (extractPhoneFromJid(statusData.status?.jid) || 
+             statusData.instance?.owner ||
+             statusData.phone || 
+             statusData.me?.id || 
+             null)
+          : null;
         const newStatus = isConnected ? 'connected' : 'disconnected';
 
         await supabaseAdmin
