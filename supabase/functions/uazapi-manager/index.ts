@@ -242,7 +242,7 @@ Deno.serve(async (req) => {
         return new Response(
           JSON.stringify({
             success: true,
-            qrcode: qrData.qrcode || qrData.base64 || qrData.qr || qrData,
+            qrcode: qrData.instance?.qrcode || qrData.qrcode || qrData.base64 || qrData.qr || null,
             instanceName: userSettings.uazapi_instance_name,
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
