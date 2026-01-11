@@ -269,13 +269,30 @@ Deno.serve(async (req) => {
         const statusData = await readJsonSafe(statusResponse);
         console.log('[uazapi-manager] Status response:', JSON.stringify(statusData));
 
+        // Extrair telefone do JID (formato: "553180175217:80@s.whatsapp.net")
+        const extractPhoneFromJid = (jid: string | null | undefined): string | null => {
+          if (!jid) return null;
+          const match = jid.match(/^(\d+):/);
+          return match ? match[1] : jid;
+        };
+
         const isConnected =
+          // Estrutura aninhada da UAZAPI (prioritária)
+          statusData.status?.connected === true ||
+          statusData.status?.loggedIn === true ||
+          statusData.instance?.status === 'connected' ||
+          // Fallbacks para outras estruturas
           statusData.connected === true ||
-          statusData.status === 'connected' ||
           statusData.state === 'open' ||
           statusData.state === 'connected';
 
-        const connectedPhone = statusData.phone || statusData.me?.id || statusData.jid || null;
+        const connectedPhone = 
+          statusData.instance?.owner ||
+          extractPhoneFromJid(statusData.status?.jid) ||
+          statusData.phone || 
+          statusData.me?.id || 
+          statusData.jid || 
+          null;
         const newStatus = isConnected ? 'connected' : 'disconnected';
 
         await supabaseAdmin
