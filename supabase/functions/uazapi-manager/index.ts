@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface RequestBody {
-  action: 'create-instance' | 'link-instance' | 'connect-or-create' | 'get-qrcode' | 'check-status' | 'disconnect' | 'delete-instance';
+  action: 'create-instance' | 'link-instance' | 'connect-or-create' | 'get-qrcode' | 'check-status' | 'disconnect' | 'unlink-instance' | 'delete-instance';
   instanceName?: string;
   instanceToken?: string;
 }
@@ -616,6 +616,34 @@ Deno.serve(async (req) => {
           .eq('user_id', userId);
 
         return new Response(JSON.stringify({ success: true, message: 'Desconectado com sucesso' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      case 'unlink-instance': {
+        // Apenas remove do banco local, não deleta da UAZAPI
+        if (!userSettings.uazapi_instance_name) {
+          return new Response(JSON.stringify({ error: 'Nenhuma instância configurada' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        console.log(`[uazapi-manager] Unlinking (local only): ${userSettings.uazapi_instance_name}`);
+
+        await supabaseAdmin
+          .from('user_settings')
+          .update({
+            uazapi_instance_name: null,
+            uazapi_instance_token: null,
+            uazapi_connection_status: 'disconnected',
+            uazapi_connected_phone: null,
+            uazapi_last_checked: null,
+          })
+          .eq('user_id', userId);
+
+        return new Response(JSON.stringify({ success: true, message: 'Instância desvinculada' }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
