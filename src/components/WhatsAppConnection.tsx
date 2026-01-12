@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Smartphone, 
   QrCode, 
@@ -16,8 +15,7 @@ import {
   Loader2,
   AlertCircle,
   Wifi,
-  WifiOff,
-  Link
+  WifiOff
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -41,7 +39,7 @@ interface UazapiSettings {
   uazapi_last_checked: string | null;
 }
 
-type ConnectionState = 'no-instance' | 'loading' | 'awaiting-qr' | 'connected' | 'error';
+type ConnectionState = 'no-instance' | 'loading' | 'awaiting-qr' | 'connected' | 'disconnected' | 'error';
 
 const validateInstanceName = (name: string): { valid: boolean; error?: string } => {
   if (!name) return { valid: false, error: 'Nome é obrigatório' };
@@ -54,9 +52,7 @@ const validateInstanceName = (name: string): { valid: boolean; error?: string } 
 
 const formatPhoneNumber = (phone: string | null): string => {
   if (!phone) return '';
-  // Remove any non-numeric characters except +
   const cleaned = phone.replace(/[^\d+]/g, '');
-  // Format as +55 11 99999-9999
   if (cleaned.startsWith('55') && cleaned.length >= 12) {
     const ddd = cleaned.slice(2, 4);
     const part1 = cleaned.slice(4, 9);
@@ -68,16 +64,12 @@ const formatPhoneNumber = (phone: string | null): string => {
 
 export const WhatsAppConnection = () => {
   const { user } = useAuth();
-  const [instanceName, setInstanceName] = useState('wpp_');
-  const [instanceToken, setInstanceToken] = useState('');
+  const [instanceName, setInstanceName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
-  const [tokenError, setTokenError] = useState<string | null>(null);
   const [settings, setSettings] = useState<UazapiSettings | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>('loading');
   const [qrCode, setQrCode] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [mode, setMode] = useState<'create' | 'link'>('create');
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const pollingStartRef = useRef<number | null>(null);
 
@@ -111,7 +103,7 @@ export const WhatsAppConnection = () => {
       } else if (uazapiSettings.uazapi_connection_status === 'connecting') {
         setConnectionState('awaiting-qr');
       } else {
-        setConnectionState('no-instance');
+        setConnectionState('disconnected');
       }
     } catch (error) {
       console.error('Error fetching UAZAPI settings:', error);
@@ -152,75 +144,36 @@ export const WhatsAppConnection = () => {
     return response.data;
   };
 
-  // Create instance
-  const handleCreateInstance = async () => {
+  // Connect (create or link automatically)
+  const handleConnect = async () => {
     const validation = validateInstanceName(instanceName);
     if (!validation.valid) {
       setNameError(validation.error || 'Nome inválido');
       return;
     }
 
-    setActionLoading('create');
+    setActionLoading('connect');
     setNameError(null);
 
     try {
-      const result = await callUazapiManager('create-instance', { instanceName });
+      const result = await callUazapiManager('connect-or-create', { instanceName });
       
       if (result.success) {
-        toast.success('Instância criada com sucesso!');
-        await fetchSettings();
-        // Automatically request QR code
-        await handleGetQrCode();
-      } else {
-        throw new Error(result.error || 'Erro ao criar instância');
-      }
-    } catch (error) {
-      console.error('Error creating instance:', error);
-      toast.error(error instanceof Error ? error.message : 'Erro ao criar instância');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // Link existing instance
-  const handleLinkInstance = async () => {
-    const nameValidation = validateInstanceName(instanceName);
-    if (!nameValidation.valid) {
-      setNameError(nameValidation.error || 'Nome inválido');
-      return;
-    }
-
-    if (!instanceToken.trim()) {
-      setTokenError('Token é obrigatório');
-      return;
-    }
-
-    setActionLoading('link');
-    setNameError(null);
-    setTokenError(null);
-
-    try {
-      const result = await callUazapiManager('link-instance', { 
-        instanceName, 
-        instanceToken: instanceToken.trim() 
-      });
-      
-      if (result.success) {
-        toast.success('Instância vinculada com sucesso!');
+        toast.success(result.isNew ? 'Instância criada!' : 'Instância vinculada!', {
+          description: result.connected ? 'WhatsApp já está conectado' : 'Agora conecte seu WhatsApp',
+        });
         await fetchSettings();
         
-        if (result.connected) {
-          setConnectionState('connected');
-        } else {
-          // Instance exists but not connected, get QR code
+        // Se já está conectado, não precisa de QR
+        if (!result.connected) {
           await handleGetQrCode();
         }
       } else {
-        throw new Error(result.error || 'Erro ao vincular instância');
+        throw new Error(result.error || 'Erro ao conectar');
       }
     } catch (error) {
-      console.error('Error linking instance:', error);
-      toast.error(error instanceof Error ? error.message : 'Erro ao vincular instância');
+      console.error('Error connecting:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao conectar');
     } finally {
       setActionLoading(null);
     }
@@ -244,7 +197,7 @@ export const WhatsAppConnection = () => {
     } catch (error) {
       console.error('Error getting QR code:', error);
       toast.error(error instanceof Error ? error.message : 'Erro ao gerar QR Code');
-      setConnectionState('no-instance');
+      setConnectionState('disconnected');
     } finally {
       setActionLoading(null);
     }
@@ -252,23 +205,21 @@ export const WhatsAppConnection = () => {
 
   // Start polling for connection status
   const startPolling = () => {
-    // Clear any existing polling
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
     }
 
     pollingStartRef.current = Date.now();
-    const POLLING_INTERVAL = 3000; // 3 seconds
-    const POLLING_TIMEOUT = 120000; // 2 minutes
+    const POLLING_INTERVAL = 3000;
+    const POLLING_TIMEOUT = 120000;
 
     pollingRef.current = setInterval(async () => {
-      // Check timeout
       if (pollingStartRef.current && Date.now() - pollingStartRef.current > POLLING_TIMEOUT) {
         clearInterval(pollingRef.current!);
         pollingRef.current = null;
         toast.warning('QR Code expirado. Gere um novo.');
         setQrCode(null);
-        setConnectionState('no-instance');
+        setConnectionState('disconnected');
         await fetchSettings();
         return;
       }
@@ -321,7 +272,7 @@ export const WhatsAppConnection = () => {
       if (result.success) {
         toast.success('WhatsApp desconectado');
         await fetchSettings();
-        setConnectionState('no-instance');
+        setConnectionState('disconnected');
       }
     } catch (error) {
       console.error('Error disconnecting:', error);
@@ -336,7 +287,6 @@ export const WhatsAppConnection = () => {
     setActionLoading('delete');
 
     try {
-      // Stop polling if active
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
         pollingRef.current = null;
@@ -347,8 +297,7 @@ export const WhatsAppConnection = () => {
       if (result.success) {
         toast.success('Instância deletada');
         setQrCode(null);
-        setInstanceName('wpp_');
-        setInstanceToken('');
+        setInstanceName('');
         setConnectionState('no-instance');
         await fetchSettings();
       }
@@ -369,11 +318,6 @@ export const WhatsAppConnection = () => {
     } else {
       setNameError(null);
     }
-  };
-
-  const handleTokenChange = (value: string) => {
-    setInstanceToken(value);
-    setTokenError(null);
   };
 
   // Render loading state
@@ -411,175 +355,85 @@ export const WhatsAppConnection = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Tabs value={mode} onValueChange={(v) => setMode(v as 'create' | 'link')}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="create" className="flex items-center gap-2">
-                <Smartphone className="h-4 w-4" />
-                Nova Instância
-              </TabsTrigger>
-              <TabsTrigger value="link" className="flex items-center gap-2">
-                <Link className="h-4 w-4" />
-                Vincular Existente
-              </TabsTrigger>
-            </TabsList>
+          <div className="space-y-2">
+            <Label htmlFor="instance-name">Nome da Instância</Label>
+            <Input
+              id="instance-name"
+              placeholder="minha-empresa"
+              value={instanceName}
+              onChange={(e) => handleNameChange(e.target.value)}
+              className={nameError ? 'border-destructive' : ''}
+            />
+            {nameError && (
+              <p className="text-sm text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {nameError}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Use apenas letras, números, - e _. Se a instância já existir, será vinculada automaticamente.
+            </p>
+          </div>
 
-            <TabsContent value="create" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="instance-name">Nome da Instância</Label>
-                <Input
-                  id="instance-name"
-                  placeholder="wpp_minha_empresa"
-                  value={instanceName}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  className={nameError ? 'border-destructive' : ''}
-                />
-                {nameError && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {nameError}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Use apenas letras, números, - e _. Exemplo: wpp_minha_empresa
-                </p>
-              </div>
-
-              <Button 
-                onClick={handleCreateInstance}
-                disabled={actionLoading === 'create' || !instanceName}
-                className="w-full"
-              >
-                {actionLoading === 'create' ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Criando...
-                  </>
-                ) : (
-                  <>
-                    <Smartphone className="mr-2 h-4 w-4" />
-                    Criar Instância
-                  </>
-                )}
-              </Button>
-            </TabsContent>
-
-            <TabsContent value="link" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="link-instance-name">Nome da Instância</Label>
-                <Input
-                  id="link-instance-name"
-                  placeholder="nome_da_instancia"
-                  value={instanceName}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  className={nameError ? 'border-destructive' : ''}
-                />
-                {nameError && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {nameError}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="instance-token">Token da Instância</Label>
-                <Input
-                  id="instance-token"
-                  type="password"
-                  placeholder="Token obtido no painel UAZAPI"
-                  value={instanceToken}
-                  onChange={(e) => handleTokenChange(e.target.value)}
-                  className={tokenError ? 'border-destructive' : ''}
-                />
-                {tokenError && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {tokenError}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Obtenha o token no painel da UAZAPI para a instância existente
-                </p>
-              </div>
-
-              <Button 
-                onClick={handleLinkInstance}
-                disabled={actionLoading === 'link' || !instanceName || !instanceToken}
-                className="w-full"
-              >
-                {actionLoading === 'link' ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Vinculando...
-                  </>
-                ) : (
-                  <>
-                    <Link className="mr-2 h-4 w-4" />
-                    Vincular Instância
-                  </>
-                )}
-              </Button>
-            </TabsContent>
-          </Tabs>
+          <Button 
+            onClick={handleConnect}
+            disabled={actionLoading === 'connect' || !instanceName}
+            className="w-full"
+          >
+            {actionLoading === 'connect' ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Conectando...
+              </>
+            ) : (
+              <>
+                <Smartphone className="mr-2 h-4 w-4" />
+                Conectar
+              </>
+            )}
+          </Button>
         </CardContent>
       </Card>
     );
   }
 
   // Render awaiting QR state
-  if (connectionState === 'awaiting-qr' || qrCode) {
+  if (connectionState === 'awaiting-qr') {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <QrCode className="h-5 w-5 text-yellow-500" />
-            Conexão WhatsApp
-            <Badge variant="outline" className="ml-auto text-yellow-600 border-yellow-300">
-              Aguardando
-            </Badge>
+            <QrCode className="h-5 w-5 text-primary" />
+            Escaneie o QR Code
           </CardTitle>
           <CardDescription>
-            Escaneie o QR Code com seu WhatsApp
+            Abra o WhatsApp no seu celular e escaneie o código
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {qrCode ? (
-            <div className="flex flex-col items-center space-y-4">
-              <div className="bg-white p-4 rounded-lg shadow-inner">
-                {qrCode.startsWith('data:') ? (
-                  <img 
-                    src={qrCode} 
-                    alt="QR Code" 
-                    className="w-48 h-48 object-contain"
-                  />
-                ) : (
-                  <img 
-                    src={`data:image/png;base64,${qrCode}`} 
-                    alt="QR Code" 
-                    className="w-48 h-48 object-contain"
-                  />
-                )}
+            <div className="flex flex-col items-center gap-4">
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <img 
+                  src={qrCode} 
+                  alt="QR Code WhatsApp" 
+                  className="w-64 h-64"
+                />
               </div>
-              
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Verificando conexão...
+                Aguardando conexão...
               </div>
-
-              <p className="text-xs text-muted-foreground text-center">
-                Instância: <strong>{settings?.uazapi_instance_name}</strong>
-              </p>
             </div>
           ) : (
-            <div className="flex flex-col items-center space-y-4 py-8">
+            <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Gerando QR Code...</p>
             </div>
           )}
 
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={handleGetQrCode}
               disabled={actionLoading === 'qrcode'}
               className="flex-1"
@@ -589,7 +443,7 @@ export const WhatsAppConnection = () => {
               ) : (
                 <RefreshCw className="mr-2 h-4 w-4" />
               )}
-              Novo QR
+              Novo QR Code
             </Button>
             
             <AlertDialog>
@@ -620,37 +474,36 @@ export const WhatsAppConnection = () => {
   }
 
   // Render connected state
-  if (connectionState === 'connected' || settings?.uazapi_connection_status === 'connected') {
+  if (connectionState === 'connected') {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
-            Conexão WhatsApp
-            <Badge variant="outline" className="ml-auto text-green-600 border-green-300">
-              Conectado
-            </Badge>
+            <Wifi className="h-5 w-5 text-success" />
+            WhatsApp Conectado
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
-            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-              <Wifi className="h-6 w-6 text-green-600" />
-            </div>
+          <div className="flex items-center gap-3 p-4 bg-success/10 rounded-lg">
+            <CheckCircle2 className="h-8 w-8 text-success" />
             <div>
-              <p className="font-medium">{settings?.uazapi_instance_name}</p>
+              <p className="font-medium">Conexão ativa</p>
               {settings?.uazapi_connected_phone && (
                 <p className="text-sm text-muted-foreground">
                   {formatPhoneNumber(settings.uazapi_connected_phone)}
                 </p>
               )}
+              {settings?.uazapi_instance_name && (
+                <Badge variant="outline" className="mt-1">
+                  {settings.uazapi_instance_name}
+                </Badge>
+              )}
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button 
-              variant="outline" 
-              size="sm"
+            <Button
+              variant="outline"
               onClick={handleCheckStatus}
               disabled={actionLoading === 'status'}
             >
@@ -661,11 +514,15 @@ export const WhatsAppConnection = () => {
               )}
               Verificar Status
             </Button>
-            
+
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <WifiOff className="mr-2 h-4 w-4" />
+                <Button variant="outline" disabled={actionLoading === 'disconnect'}>
+                  {actionLoading === 'disconnect' ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <XCircle className="mr-2 h-4 w-4" />
+                  )}
                   Desconectar
                 </Button>
               </AlertDialogTrigger>
@@ -684,11 +541,83 @@ export const WhatsAppConnection = () => {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            
+
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                  <Trash2 className="mr-2 h-4 w-4" />
+                <Button variant="destructive" disabled={actionLoading === 'delete'}>
+                  {actionLoading === 'delete' ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
+                  Deletar
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Deletar instância?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação não pode ser desfeita. A instância será removida permanentemente do servidor.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteInstance}>
+                    Deletar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Render disconnected state (has instance but not connected)
+  if (connectionState === 'disconnected') {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <WifiOff className="h-5 w-5 text-destructive" />
+            WhatsApp Desconectado
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3 p-4 bg-destructive/10 rounded-lg">
+            <XCircle className="h-8 w-8 text-destructive" />
+            <div>
+              <p className="font-medium">Conexão inativa</p>
+              {settings?.uazapi_instance_name && (
+                <Badge variant="outline" className="mt-1">
+                  {settings.uazapi_instance_name}
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={handleGetQrCode}
+              disabled={actionLoading === 'qrcode'}
+            >
+              {actionLoading === 'qrcode' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <QrCode className="mr-2 h-4 w-4" />
+              )}
+              Conectar
+            </Button>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={actionLoading === 'delete'}>
+                  {actionLoading === 'delete' ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
                   Deletar
                 </Button>
               </AlertDialogTrigger>
@@ -708,76 +637,25 @@ export const WhatsAppConnection = () => {
               </AlertDialogContent>
             </AlertDialog>
           </div>
-
-          {settings?.uazapi_last_checked && (
-            <p className="text-xs text-muted-foreground">
-              Última verificação: {new Date(settings.uazapi_last_checked).toLocaleString('pt-BR')}
-            </p>
-          )}
         </CardContent>
       </Card>
     );
   }
 
-  // Render disconnected state with instance
+  // Error state
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <XCircle className="h-5 w-5 text-red-500" />
-          Conexão WhatsApp
-          <Badge variant="outline" className="ml-auto text-red-600 border-red-300">
-            Desconectado
-          </Badge>
+        <CardTitle className="flex items-center gap-2 text-destructive">
+          <AlertCircle className="h-5 w-5" />
+          Erro ao carregar
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
-          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-            <WifiOff className="h-6 w-6 text-red-600" />
-          </div>
-          <div>
-            <p className="font-medium">{settings?.uazapi_instance_name}</p>
-            <p className="text-sm text-muted-foreground">Não conectado</p>
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-          <Button 
-            onClick={handleGetQrCode}
-            disabled={actionLoading === 'qrcode'}
-            className="flex-1"
-          >
-            {actionLoading === 'qrcode' ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <QrCode className="mr-2 h-4 w-4" />
-            )}
-            Conectar
-          </Button>
-          
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="icon">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Deletar instância?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta ação não pode ser desfeita. A instância será removida permanentemente.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteInstance}>
-                  Deletar
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
+      <CardContent>
+        <Button onClick={fetchSettings} variant="outline">
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Tentar novamente
+        </Button>
       </CardContent>
     </Card>
   );

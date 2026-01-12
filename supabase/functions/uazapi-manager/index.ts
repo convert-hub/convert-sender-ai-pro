@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface RequestBody {
-  action: 'create-instance' | 'link-instance' | 'get-qrcode' | 'check-status' | 'disconnect' | 'delete-instance';
+  action: 'create-instance' | 'link-instance' | 'connect-or-create' | 'get-qrcode' | 'check-status' | 'disconnect' | 'delete-instance';
   instanceName?: string;
   instanceToken?: string;
 }
@@ -292,6 +292,175 @@ Deno.serve(async (req) => {
             connected: isConnected,
             phone: connectedPhone,
             message: 'Instância vinculada com sucesso',
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'connect-or-create': {
+        const { instanceName } = body;
+
+        // Validar nome
+        if (!instanceName) {
+          return new Response(JSON.stringify({ error: 'Nome da instância é obrigatório' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        if (!/^[a-zA-Z0-9_-]{3,50}$/.test(instanceName)) {
+          return new Response(
+            JSON.stringify({ error: 'Nome inválido. Use apenas letras, números, - e _ (3-50 caracteres)' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Verificar se usuário já tem instância
+        if (userSettings.uazapi_instance_name) {
+          return new Response(JSON.stringify({ error: 'Você já possui uma instância configurada' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        console.log(`[uazapi-manager] Connect-or-create: ${instanceName}`);
+
+        // 1. Buscar todas as instâncias existentes
+        const listResponse = await fetch(`${uazapiBaseUrl}/instance/all`, {
+          method: 'GET',
+          headers: buildAdminHeaders(uazapiAdminToken),
+        });
+
+        const allInstances = await readJsonSafe(listResponse);
+        console.log('[uazapi-manager] List instances status:', listResponse.status);
+
+        if (!listResponse.ok) {
+          console.error('[uazapi-manager] Error listing instances:', allInstances);
+          return new Response(
+            JSON.stringify({ error: 'Erro ao verificar instâncias existentes' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // 2. Procurar instância pelo nome
+        const instancesArray = Array.isArray(allInstances) ? allInstances : [];
+        const existingInstance = instancesArray.find(
+          (inst: any) => inst.name === instanceName
+        );
+
+        let instanceToken: string;
+        let isNew = false;
+        let isConnected = false;
+        let connectedPhone: string | null = null;
+
+        if (existingInstance) {
+          // INSTÂNCIA EXISTE - pegar token
+          instanceToken = existingInstance.token || existingInstance.apikey;
+          console.log(`[uazapi-manager] Found existing instance: ${instanceName}, token: ${instanceToken ? 'present' : 'missing'}`);
+
+          if (!instanceToken) {
+            return new Response(
+              JSON.stringify({ error: 'Instância encontrada mas token não disponível' }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+
+          // Verificar status da instância existente
+          const statusResponse = await fetch(`${uazapiBaseUrl}/instance/status`, {
+            method: 'GET',
+            headers: buildInstanceHeaders(instanceToken),
+          });
+
+          const statusData = await readJsonSafe(statusResponse);
+          console.log('[uazapi-manager] Existing instance status:', JSON.stringify(statusData));
+
+          const extractPhoneFromJid = (jid: string | null | undefined): string | null => {
+            if (!jid) return null;
+            const match = jid.match(/^(\d+):/);
+            return match ? match[1] : jid;
+          };
+
+          isConnected =
+            statusData.status?.loggedIn === true ||
+            statusData.instance?.status === 'connected' ||
+            (statusData.status?.connected === true && statusData.status?.jid !== null);
+
+          connectedPhone = isConnected 
+            ? (extractPhoneFromJid(statusData.status?.jid) || 
+               statusData.instance?.owner ||
+               statusData.phone || 
+               null)
+            : null;
+
+        } else {
+          // INSTÂNCIA NÃO EXISTE - criar nova
+          isNew = true;
+          console.log(`[uazapi-manager] Creating new instance: ${instanceName}`);
+
+          const createResponse = await fetch(`${uazapiBaseUrl}/instance/init`, {
+            method: 'POST',
+            headers: buildAdminHeaders(uazapiAdminToken, true),
+            body: JSON.stringify({
+              name: instanceName,
+              systemName: 'convert-sender',
+              adminField01: userId,
+              adminField02: userEmail,
+              fingerprintProfile: 'chrome',
+              browser: 'chrome',
+            }),
+          });
+
+          const createData = await readJsonSafe(createResponse);
+          console.log('[uazapi-manager] Create status:', createResponse.status);
+          console.log('[uazapi-manager] Create response:', JSON.stringify(createData));
+
+          if (!createResponse.ok) {
+            const msg = pickUazapiError(createData) || 'Erro ao criar instância';
+            return new Response(
+              JSON.stringify({ error: msg, uazapi_status: createResponse.status }),
+              { status: createResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+
+          instanceToken = createData?.token || createData?.instance?.token || createData?.apikey;
+
+          if (!instanceToken) {
+            console.error('[uazapi-manager] No token in create response:', createData);
+            return new Response(JSON.stringify({ error: 'Token não retornado pela UAZAPI' }), {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        }
+
+        // 3. Salvar no banco
+        const { error: updateError } = await supabaseAdmin
+          .from('user_settings')
+          .update({
+            uazapi_instance_name: instanceName,
+            uazapi_instance_token: instanceToken,
+            uazapi_connection_status: isConnected ? 'connected' : 'disconnected',
+            uazapi_connected_phone: connectedPhone,
+            uazapi_last_checked: new Date().toISOString(),
+          })
+          .eq('user_id', userId);
+
+        if (updateError) {
+          console.error('[uazapi-manager] Update error:', updateError);
+          return new Response(JSON.stringify({ error: 'Erro ao salvar configurações' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            instanceName,
+            isNew,
+            connected: isConnected,
+            phone: connectedPhone,
+            message: isNew ? 'Instância criada com sucesso' : 'Instância vinculada com sucesso',
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
