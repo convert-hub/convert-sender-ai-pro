@@ -53,9 +53,45 @@ export const HomeWhatsAppStatus = () => {
   const [connectionState, setConnectionState] = useState<ConnectionState>('loading');
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
   
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const pollingStartRef = useRef<number | null>(null);
+
+  const callUazapiManager = async (action: string, data?: Record<string, unknown>) => {
+    const { data: response, error } = await supabase.functions.invoke('uazapi-manager', {
+      body: { action, ...data },
+    });
+
+    if (error) throw error;
+    return response;
+  };
+
+  // Verifica status real na UAZAPI
+  const checkRealStatus = useCallback(async () => {
+    setIsVerifying(true);
+    try {
+      const response = await callUazapiManager('check-status');
+      
+      setSettings(prev => prev ? {
+        ...prev,
+        uazapi_connection_status: response.status,
+        uazapi_connected_phone: response.phone,
+      } : null);
+      
+      if (response.status === 'connected') {
+        setConnectionState('connected');
+        setQrCode(null);
+      } else {
+        setConnectionState('disconnected');
+      }
+    } catch (error) {
+      console.error('Error checking real status:', error);
+      setConnectionState('disconnected');
+    } finally {
+      setIsVerifying(false);
+    }
+  }, []);
 
   const fetchSettings = useCallback(async () => {
     if (!user) return;
@@ -74,11 +110,9 @@ export const HomeWhatsAppStatus = () => {
         
         if (!data.uazapi_instance_name) {
           setConnectionState('no-instance');
-        } else if (data.uazapi_connection_status === 'connected') {
-          setConnectionState('connected');
-          setQrCode(null);
         } else {
-          setConnectionState('disconnected');
+          // Sempre verifica o status real quando há instância configurada
+          await checkRealStatus();
         }
       } else {
         setConnectionState('no-instance');
@@ -87,7 +121,7 @@ export const HomeWhatsAppStatus = () => {
       console.error('Error fetching UAZAPI settings:', error);
       setConnectionState('no-instance');
     }
-  }, [user]);
+  }, [user, checkRealStatus]);
 
   useEffect(() => {
     fetchSettings();
@@ -96,14 +130,6 @@ export const HomeWhatsAppStatus = () => {
     };
   }, [fetchSettings]);
 
-  const callUazapiManager = async (action: string, data?: Record<string, unknown>) => {
-    const { data: response, error } = await supabase.functions.invoke('uazapi-manager', {
-      body: { action, ...data },
-    });
-
-    if (error) throw error;
-    return response;
-  };
 
   const handleConnect = async () => {
     const error = validateInstanceName(instanceName);

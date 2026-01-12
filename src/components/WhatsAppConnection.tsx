@@ -71,8 +71,55 @@ export const WhatsAppConnection = () => {
   const [connectionState, setConnectionState] = useState<ConnectionState>('loading');
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const pollingStartRef = useRef<number | null>(null);
+
+  // Call edge function
+  const callUazapiManager = async (action: string, extraData?: Record<string, unknown>) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+
+    if (!token) {
+      throw new Error('Não autenticado');
+    }
+
+    const response = await supabase.functions.invoke('uazapi-manager', {
+      body: { action, ...extraData },
+    });
+
+    if (response.error) {
+      throw new Error(response.error.message || 'Erro na operação');
+    }
+
+    return response.data;
+  };
+
+  // Verifica status real na UAZAPI
+  const checkRealStatus = useCallback(async () => {
+    setIsVerifying(true);
+    try {
+      const result = await callUazapiManager('check-status');
+      
+      setSettings(prev => prev ? {
+        ...prev,
+        uazapi_connection_status: result.status === 'connected' ? 'connected' : 'disconnected',
+        uazapi_connected_phone: result.phone,
+      } : null);
+      
+      if (result.status === 'connected') {
+        setConnectionState('connected');
+        setQrCode(null);
+      } else {
+        setConnectionState('disconnected');
+      }
+    } catch (error) {
+      console.error('Error checking real status:', error);
+      setConnectionState('disconnected');
+    } finally {
+      setIsVerifying(false);
+    }
+  }, []);
 
   // Fetch initial settings
   const fetchSettings = useCallback(async () => {
@@ -99,18 +146,15 @@ export const WhatsAppConnection = () => {
       // Determine connection state
       if (!uazapiSettings.uazapi_instance_name) {
         setConnectionState('no-instance');
-      } else if (uazapiSettings.uazapi_connection_status === 'connected') {
-        setConnectionState('connected');
-      } else if (uazapiSettings.uazapi_connection_status === 'connecting') {
-        setConnectionState('awaiting-qr');
       } else {
-        setConnectionState('disconnected');
+        // Sempre verifica o status real quando há instância configurada
+        await checkRealStatus();
       }
     } catch (error) {
       console.error('Error fetching UAZAPI settings:', error);
       setConnectionState('error');
     }
-  }, [user]);
+  }, [user, checkRealStatus]);
 
   useEffect(() => {
     fetchSettings();
@@ -125,25 +169,6 @@ export const WhatsAppConnection = () => {
     };
   }, []);
 
-  // Call edge function
-  const callUazapiManager = async (action: string, extraData?: Record<string, unknown>) => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
-
-    if (!token) {
-      throw new Error('Não autenticado');
-    }
-
-    const response = await supabase.functions.invoke('uazapi-manager', {
-      body: { action, ...extraData },
-    });
-
-    if (response.error) {
-      throw new Error(response.error.message || 'Erro na operação');
-    }
-
-    return response.data;
-  };
 
   // Connect (create or link automatically)
   const handleConnect = async () => {
