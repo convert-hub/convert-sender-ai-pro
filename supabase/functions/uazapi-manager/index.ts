@@ -6,8 +6,9 @@ const corsHeaders = {
 };
 
 interface RequestBody {
-  action: 'create-instance' | 'get-qrcode' | 'check-status' | 'disconnect' | 'delete-instance';
+  action: 'create-instance' | 'link-instance' | 'get-qrcode' | 'check-status' | 'disconnect' | 'delete-instance';
   instanceName?: string;
+  instanceToken?: string;
 }
 
 // Headers para endpoints ADMINISTRATIVOS (create instance, delete global)
@@ -197,6 +198,100 @@ Deno.serve(async (req) => {
             success: true,
             instanceName,
             message: 'Instância criada com sucesso',
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'link-instance': {
+        const { instanceName, instanceToken } = body;
+
+        if (!instanceName || !instanceToken) {
+          return new Response(
+            JSON.stringify({ error: 'Nome e token da instância são obrigatórios' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (!/^[a-zA-Z0-9_-]{3,50}$/.test(instanceName)) {
+          return new Response(
+            JSON.stringify({ error: 'Nome inválido. Use apenas letras, números, - e _ (3-50 caracteres)' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (userSettings.uazapi_instance_name) {
+          return new Response(JSON.stringify({ error: 'Você já possui uma instância vinculada' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        console.log(`[uazapi-manager] Linking existing instance: ${instanceName}`);
+
+        // Validate that the instance exists by checking its status
+        const statusResponse = await fetch(`${uazapiBaseUrl}/instance/status`, {
+          method: 'GET',
+          headers: buildInstanceHeaders(instanceToken),
+        });
+
+        const statusData = await readJsonSafe(statusResponse);
+        console.log('[uazapi-manager] Link validation status:', statusResponse.status);
+        console.log('[uazapi-manager] Link validation response:', JSON.stringify(statusData));
+
+        if (!statusResponse.ok) {
+          const msg = pickUazapiError(statusData) || 'Instância não encontrada ou token inválido';
+          return new Response(
+            JSON.stringify({ error: msg, uazapi_status: statusResponse.status }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Determine current connection status from the response
+        const isConnected =
+          statusData.status?.loggedIn === true ||
+          statusData.instance?.status === 'connected' ||
+          (statusData.status?.connected === true && statusData.status?.jid !== null);
+
+        const extractPhoneFromJid = (jid: string | null | undefined): string | null => {
+          if (!jid) return null;
+          const match = jid.match(/^(\d+):/);
+          return match ? match[1] : jid;
+        };
+
+        const connectedPhone = isConnected 
+          ? (extractPhoneFromJid(statusData.status?.jid) || 
+             statusData.instance?.owner ||
+             statusData.phone || 
+             null)
+          : null;
+
+        const { error: updateError } = await supabaseAdmin
+          .from('user_settings')
+          .update({
+            uazapi_instance_name: instanceName,
+            uazapi_instance_token: instanceToken,
+            uazapi_connection_status: isConnected ? 'connected' : 'disconnected',
+            uazapi_connected_phone: connectedPhone,
+            uazapi_last_checked: new Date().toISOString(),
+          })
+          .eq('user_id', userId);
+
+        if (updateError) {
+          console.error('[uazapi-manager] Update error:', updateError);
+          return new Response(JSON.stringify({ error: 'Erro ao salvar configurações' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            instanceName,
+            connected: isConnected,
+            phone: connectedPhone,
+            message: 'Instância vinculada com sucesso',
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );

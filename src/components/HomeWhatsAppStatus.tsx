@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,7 +17,8 @@ import {
   RefreshCw, 
   Check,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Link
 } from 'lucide-react';
 
 interface UazapiSettings {
@@ -30,7 +33,7 @@ type ConnectionState = 'loading' | 'no-instance' | 'disconnected' | 'awaiting-qr
 const validateInstanceName = (name: string): string | null => {
   if (!name) return 'Nome é obrigatório';
   if (name.length < 3) return 'Mínimo 3 caracteres';
-  if (name.length > 24) return 'Máximo 24 caracteres';
+  if (name.length > 50) return 'Máximo 50 caracteres';
   if (!/^[a-zA-Z0-9_-]+$/.test(name)) return 'Apenas letras, números, _ e -';
   return null;
 };
@@ -49,12 +52,15 @@ const formatPhoneNumber = (phone: string): string => {
 export const HomeWhatsAppStatus = () => {
   const { user } = useAuth();
   const [instanceName, setInstanceName] = useState('');
+  const [instanceToken, setInstanceToken] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
+  const [tokenError, setTokenError] = useState<string | null>(null);
   const [settings, setSettings] = useState<UazapiSettings | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>('loading');
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [mode, setMode] = useState<'create' | 'link'>('create');
   
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const pollingStartRef = useRef<number | null>(null);
@@ -137,6 +143,50 @@ export const HomeWhatsAppStatus = () => {
     }
   };
 
+  const handleLinkInstance = async () => {
+    const nameValidationError = validateInstanceName(instanceName);
+    if (nameValidationError) {
+      setNameError(nameValidationError);
+      return;
+    }
+
+    if (!instanceToken.trim()) {
+      setTokenError('Token é obrigatório');
+      return;
+    }
+
+    setActionLoading('link');
+    setNameError(null);
+    setTokenError(null);
+
+    try {
+      const response = await callUazapiManager('link-instance', { 
+        instanceName, 
+        instanceToken: instanceToken.trim() 
+      });
+      
+      toast({
+        title: 'Instância vinculada!',
+        description: response.connected ? 'WhatsApp já está conectado' : 'Agora conecte seu WhatsApp',
+      });
+      
+      await fetchSettings();
+      
+      if (!response.connected) {
+        handleGetQrCode();
+      }
+    } catch (error) {
+      console.error('Error linking instance:', error);
+      toast({
+        title: 'Erro ao vincular instância',
+        description: error instanceof Error ? error.message : 'Verifique o nome e token',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleGetQrCode = async () => {
     setActionLoading('qr');
     try {
@@ -210,6 +260,11 @@ export const HomeWhatsAppStatus = () => {
     }
   };
 
+  const handleTokenChange = (value: string) => {
+    setInstanceToken(value);
+    setTokenError(null);
+  };
+
   if (connectionState === 'loading') {
     return (
       <Card className="border-muted">
@@ -239,36 +294,94 @@ export const HomeWhatsAppStatus = () => {
           </p>
           
           {connectionState === 'no-instance' ? (
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Input
-                  placeholder="Nome da instância (ex: minha-empresa)"
-                  value={instanceName}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  disabled={actionLoading === 'create'}
-                />
-                {nameError && (
-                  <p className="text-xs text-destructive">{nameError}</p>
-                )}
-              </div>
-              <Button 
-                onClick={handleCreateInstance}
-                disabled={!!nameError || !instanceName || actionLoading === 'create'}
-                className="w-full"
-              >
-                {actionLoading === 'create' ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Criando...
-                  </>
-                ) : (
-                  <>
-                    <Smartphone className="mr-2 h-4 w-4" />
-                    Criar e Conectar
-                  </>
-                )}
-              </Button>
-            </div>
+            <Tabs value={mode} onValueChange={(v) => setMode(v as 'create' | 'link')}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="create" className="text-xs">
+                  <Smartphone className="mr-1 h-3 w-3" />
+                  Nova
+                </TabsTrigger>
+                <TabsTrigger value="link" className="text-xs">
+                  <Link className="mr-1 h-3 w-3" />
+                  Existente
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="create" className="space-y-3 mt-3">
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Nome da instância (ex: minha-empresa)"
+                    value={instanceName}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    disabled={actionLoading === 'create'}
+                  />
+                  {nameError && (
+                    <p className="text-xs text-destructive">{nameError}</p>
+                  )}
+                </div>
+                <Button 
+                  onClick={handleCreateInstance}
+                  disabled={!!nameError || !instanceName || actionLoading === 'create'}
+                  className="w-full"
+                  size="sm"
+                >
+                  {actionLoading === 'create' ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Criando...
+                    </>
+                  ) : (
+                    <>
+                      <Smartphone className="mr-2 h-4 w-4" />
+                      Criar e Conectar
+                    </>
+                  )}
+                </Button>
+              </TabsContent>
+
+              <TabsContent value="link" className="space-y-3 mt-3">
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Nome da instância"
+                    value={instanceName}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    disabled={actionLoading === 'link'}
+                  />
+                  {nameError && (
+                    <p className="text-xs text-destructive">{nameError}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="password"
+                    placeholder="Token da instância"
+                    value={instanceToken}
+                    onChange={(e) => handleTokenChange(e.target.value)}
+                    disabled={actionLoading === 'link'}
+                  />
+                  {tokenError && (
+                    <p className="text-xs text-destructive">{tokenError}</p>
+                  )}
+                </div>
+                <Button 
+                  onClick={handleLinkInstance}
+                  disabled={!!nameError || !instanceName || !instanceToken || actionLoading === 'link'}
+                  className="w-full"
+                  size="sm"
+                >
+                  {actionLoading === 'link' ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Vinculando...
+                    </>
+                  ) : (
+                    <>
+                      <Link className="mr-2 h-4 w-4" />
+                      Vincular
+                    </>
+                  )}
+                </Button>
+              </TabsContent>
+            </Tabs>
           ) : (
             <Button 
               onClick={handleGetQrCode}
