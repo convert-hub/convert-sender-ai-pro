@@ -15,7 +15,8 @@ import {
   Loader2,
   AlertCircle,
   Wifi,
-  WifiOff
+  WifiOff,
+  Unlink
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -277,6 +278,35 @@ export const WhatsAppConnection = () => {
     } catch (error) {
       console.error('Error disconnecting:', error);
       toast.error('Erro ao desconectar');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Unlink instance (remove from local DB only)
+  const handleUnlinkInstance = async () => {
+    setActionLoading('unlink');
+
+    try {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+
+      const result = await callUazapiManager('unlink-instance');
+      
+      if (result.success) {
+        toast.success('Instância desvinculada', {
+          description: 'A instância continua existindo no servidor UAZAPI',
+        });
+        setQrCode(null);
+        setInstanceName('');
+        setConnectionState('no-instance');
+        await fetchSettings();
+      }
+    } catch (error) {
+      console.error('Error unlinking instance:', error);
+      toast.error('Erro ao desvincular instância');
     } finally {
       setActionLoading(null);
     }
@@ -544,6 +574,34 @@ export const WhatsAppConnection = () => {
 
             <AlertDialog>
               <AlertDialogTrigger asChild>
+                <Button variant="outline" disabled={actionLoading === 'unlink'}>
+                  {actionLoading === 'unlink' ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Unlink className="mr-2 h-4 w-4" />
+                  )}
+                  Desvincular
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Desvincular instância?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    A instância será removida desta conta, mas continuará existindo no servidor UAZAPI.
+                    Você poderá vinculá-la novamente usando o mesmo nome.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleUnlinkInstance}>
+                    Desvincular
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
                 <Button variant="destructive" disabled={actionLoading === 'delete'}>
                   {actionLoading === 'delete' ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -557,7 +615,7 @@ export const WhatsAppConnection = () => {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Deletar instância?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Esta ação não pode ser desfeita. A instância será removida permanentemente do servidor.
+                    Esta ação não pode ser desfeita. A instância será removida permanentemente do servidor UAZAPI.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -612,6 +670,34 @@ export const WhatsAppConnection = () => {
 
             <AlertDialog>
               <AlertDialogTrigger asChild>
+                <Button variant="outline" disabled={actionLoading === 'unlink'}>
+                  {actionLoading === 'unlink' ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Unlink className="mr-2 h-4 w-4" />
+                  )}
+                  Desvincular
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Desvincular instância?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    A instância será removida desta conta, mas continuará existindo no servidor UAZAPI.
+                    Você poderá vinculá-la novamente usando o mesmo nome.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleUnlinkInstance}>
+                    Desvincular
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
                 <Button variant="destructive" disabled={actionLoading === 'delete'}>
                   {actionLoading === 'delete' ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -625,7 +711,7 @@ export const WhatsAppConnection = () => {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Deletar instância?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Esta ação não pode ser desfeita. A instância será removida permanentemente.
+                    Esta ação não pode ser desfeita. A instância será removida permanentemente do servidor UAZAPI.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
