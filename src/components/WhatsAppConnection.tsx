@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Smartphone, 
   QrCode, 
@@ -15,7 +16,8 @@ import {
   Loader2,
   AlertCircle,
   Wifi,
-  WifiOff
+  WifiOff,
+  Link
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -67,12 +69,15 @@ const formatPhoneNumber = (phone: string | null): string => {
 export const WhatsAppConnection = () => {
   const { user } = useAuth();
   const [instanceName, setInstanceName] = useState('wpp_');
+  const [instanceToken, setInstanceToken] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
+  const [tokenError, setTokenError] = useState<string | null>(null);
   const [settings, setSettings] = useState<UazapiSettings | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>('loading');
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [mode, setMode] = useState<'create' | 'link'>('create');
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const pollingStartRef = useRef<number | null>(null);
 
@@ -172,6 +177,50 @@ export const WhatsAppConnection = () => {
     } catch (error) {
       console.error('Error creating instance:', error);
       toast.error(error instanceof Error ? error.message : 'Erro ao criar instância');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Link existing instance
+  const handleLinkInstance = async () => {
+    const nameValidation = validateInstanceName(instanceName);
+    if (!nameValidation.valid) {
+      setNameError(nameValidation.error || 'Nome inválido');
+      return;
+    }
+
+    if (!instanceToken.trim()) {
+      setTokenError('Token é obrigatório');
+      return;
+    }
+
+    setActionLoading('link');
+    setNameError(null);
+    setTokenError(null);
+
+    try {
+      const result = await callUazapiManager('link-instance', { 
+        instanceName, 
+        instanceToken: instanceToken.trim() 
+      });
+      
+      if (result.success) {
+        toast.success('Instância vinculada com sucesso!');
+        await fetchSettings();
+        
+        if (result.connected) {
+          setConnectionState('connected');
+        } else {
+          // Instance exists but not connected, get QR code
+          await handleGetQrCode();
+        }
+      } else {
+        throw new Error(result.error || 'Erro ao vincular instância');
+      }
+    } catch (error) {
+      console.error('Error linking instance:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao vincular instância');
     } finally {
       setActionLoading(null);
     }
@@ -299,6 +348,7 @@ export const WhatsAppConnection = () => {
         toast.success('Instância deletada');
         setQrCode(null);
         setInstanceName('wpp_');
+        setInstanceToken('');
         setConnectionState('no-instance');
         await fetchSettings();
       }
@@ -319,6 +369,11 @@ export const WhatsAppConnection = () => {
     } else {
       setNameError(null);
     }
+  };
+
+  const handleTokenChange = (value: string) => {
+    setInstanceToken(value);
+    setTokenError(null);
   };
 
   // Render loading state
@@ -356,43 +411,116 @@ export const WhatsAppConnection = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="instance-name">Nome da Instância</Label>
-            <Input
-              id="instance-name"
-              placeholder="wpp_minha_empresa"
-              value={instanceName}
-              onChange={(e) => handleNameChange(e.target.value)}
-              className={nameError ? 'border-destructive' : ''}
-            />
-            {nameError && (
-              <p className="text-sm text-destructive flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                {nameError}
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Use apenas letras, números, - e _. Exemplo: wpp_minha_empresa
-            </p>
-          </div>
+          <Tabs value={mode} onValueChange={(v) => setMode(v as 'create' | 'link')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="create" className="flex items-center gap-2">
+                <Smartphone className="h-4 w-4" />
+                Nova Instância
+              </TabsTrigger>
+              <TabsTrigger value="link" className="flex items-center gap-2">
+                <Link className="h-4 w-4" />
+                Vincular Existente
+              </TabsTrigger>
+            </TabsList>
 
-          <Button 
-            onClick={handleCreateInstance}
-            disabled={actionLoading === 'create' || !instanceName}
-            className="w-full"
-          >
-            {actionLoading === 'create' ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Criando...
-              </>
-            ) : (
-              <>
-                <Smartphone className="mr-2 h-4 w-4" />
-                Criar Instância
-              </>
-            )}
-          </Button>
+            <TabsContent value="create" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="instance-name">Nome da Instância</Label>
+                <Input
+                  id="instance-name"
+                  placeholder="wpp_minha_empresa"
+                  value={instanceName}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  className={nameError ? 'border-destructive' : ''}
+                />
+                {nameError && (
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {nameError}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Use apenas letras, números, - e _. Exemplo: wpp_minha_empresa
+                </p>
+              </div>
+
+              <Button 
+                onClick={handleCreateInstance}
+                disabled={actionLoading === 'create' || !instanceName}
+                className="w-full"
+              >
+                {actionLoading === 'create' ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Criando...
+                  </>
+                ) : (
+                  <>
+                    <Smartphone className="mr-2 h-4 w-4" />
+                    Criar Instância
+                  </>
+                )}
+              </Button>
+            </TabsContent>
+
+            <TabsContent value="link" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="link-instance-name">Nome da Instância</Label>
+                <Input
+                  id="link-instance-name"
+                  placeholder="nome_da_instancia"
+                  value={instanceName}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  className={nameError ? 'border-destructive' : ''}
+                />
+                {nameError && (
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {nameError}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="instance-token">Token da Instância</Label>
+                <Input
+                  id="instance-token"
+                  type="password"
+                  placeholder="Token obtido no painel UAZAPI"
+                  value={instanceToken}
+                  onChange={(e) => handleTokenChange(e.target.value)}
+                  className={tokenError ? 'border-destructive' : ''}
+                />
+                {tokenError && (
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {tokenError}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Obtenha o token no painel da UAZAPI para a instância existente
+                </p>
+              </div>
+
+              <Button 
+                onClick={handleLinkInstance}
+                disabled={actionLoading === 'link' || !instanceName || !instanceToken}
+                className="w-full"
+              >
+                {actionLoading === 'link' ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Vinculando...
+                  </>
+                ) : (
+                  <>
+                    <Link className="mr-2 h-4 w-4" />
+                    Vincular Instância
+                  </>
+                )}
+              </Button>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     );
@@ -499,64 +627,45 @@ export const WhatsAppConnection = () => {
           <CardTitle className="flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-green-500" />
             Conexão WhatsApp
-            <Badge className="ml-auto bg-green-100 text-green-800 hover:bg-green-100">
-              <Wifi className="mr-1 h-3 w-3" />
+            <Badge variant="outline" className="ml-auto text-green-600 border-green-300">
               Conectado
             </Badge>
           </CardTitle>
-          <CardDescription>
-            Seu WhatsApp está conectado e pronto para enviar mensagens
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Instância</span>
-              <span className="font-medium">{settings?.uazapi_instance_name}</span>
+          <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+              <Wifi className="h-6 w-6 text-green-600" />
             </div>
-            {settings?.uazapi_connected_phone && (
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Número</span>
-                <span className="font-medium">{formatPhoneNumber(settings.uazapi_connected_phone)}</span>
-              </div>
-            )}
-            {settings?.uazapi_last_checked && (
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Última verificação</span>
-                <span className="text-sm">
-                  {new Date(settings.uazapi_last_checked).toLocaleString('pt-BR')}
-                </span>
-              </div>
-            )}
+            <div>
+              <p className="font-medium">{settings?.uazapi_instance_name}</p>
+              {settings?.uazapi_connected_phone && (
+                <p className="text-sm text-muted-foreground">
+                  {formatPhoneNumber(settings.uazapi_connected_phone)}
+                </p>
+              )}
+            </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button 
               variant="outline" 
+              size="sm"
               onClick={handleCheckStatus}
               disabled={actionLoading === 'status'}
-              className="flex-1"
             >
               {actionLoading === 'status' ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <RefreshCw className="mr-2 h-4 w-4" />
               )}
-              Verificar
+              Verificar Status
             </Button>
-
+            
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button 
-                  variant="outline"
-                  disabled={actionLoading === 'disconnect'}
-                  className="flex-1"
-                >
-                  {actionLoading === 'disconnect' ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <WifiOff className="mr-2 h-4 w-4" />
-                  )}
+                <Button variant="outline" size="sm">
+                  <WifiOff className="mr-2 h-4 w-4" />
                   Desconectar
                 </Button>
               </AlertDialogTrigger>
@@ -575,18 +684,19 @@ export const WhatsAppConnection = () => {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-
+            
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="icon">
-                  <Trash2 className="h-4 w-4" />
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Deletar
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Deletar instância?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Esta ação não pode ser desfeita. A instância será desconectada e removida permanentemente.
+                    Esta ação não pode ser desfeita. A instância será removida permanentemente.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -598,31 +708,37 @@ export const WhatsAppConnection = () => {
               </AlertDialogContent>
             </AlertDialog>
           </div>
+
+          {settings?.uazapi_last_checked && (
+            <p className="text-xs text-muted-foreground">
+              Última verificação: {new Date(settings.uazapi_last_checked).toLocaleString('pt-BR')}
+            </p>
+          )}
         </CardContent>
       </Card>
     );
   }
 
-  // Render disconnected state (has instance but not connected)
+  // Render disconnected state with instance
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <XCircle className="h-5 w-5 text-muted-foreground" />
+          <XCircle className="h-5 w-5 text-red-500" />
           Conexão WhatsApp
-          <Badge variant="secondary" className="ml-auto">
+          <Badge variant="outline" className="ml-auto text-red-600 border-red-300">
             Desconectado
           </Badge>
         </CardTitle>
-        <CardDescription>
-          Sua instância existe mas não está conectada
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="rounded-lg border bg-muted/50 p-4">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">Instância</span>
-            <span className="font-medium">{settings?.uazapi_instance_name}</span>
+        <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+            <WifiOff className="h-6 w-6 text-red-600" />
+          </div>
+          <div>
+            <p className="font-medium">{settings?.uazapi_instance_name}</p>
+            <p className="text-sm text-muted-foreground">Não conectado</p>
           </div>
         </div>
 
@@ -639,7 +755,7 @@ export const WhatsAppConnection = () => {
             )}
             Conectar
           </Button>
-
+          
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" size="icon">
