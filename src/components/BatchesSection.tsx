@@ -70,6 +70,24 @@ export const BatchesSection = () => {
   // Hook para verificar e enviar batches agendados
   useScheduledBatches();
 
+  if (fetchError && batches.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>Erro ao carregar blocos</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">
+              Não foi possível carregar a lista de blocos. Verifique sua conexão e tente novamente.
+            </p>
+            <Button onClick={() => refetch()}>Tentar novamente</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!batches.length) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-6xl">
