@@ -42,7 +42,7 @@ import { ptBR } from 'date-fns/locale';
 import { BatchInfo } from '@/types/dispatch';
 
 export const BatchesSection = () => {
-  const { batches, updateBatch, deleteBatch } = useBatches();
+  const { batches, updateBatch, deleteBatch, fetchError, refetch, loading } = useBatches();
   const { addHistoryItem } = useHistory();
   const { settings, incrementStats, checkDailyLimit, confirmDailyDispatch } = useUserSettings();
   const { campaigns } = useCampaigns();
