@@ -1,22 +1,43 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { BatchInfo } from '@/types/dispatch';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
+const FETCH_BACKOFF_MS = [500, 1500, 3000];
+
+const mapRowToBatch = (row: any): BatchInfo => ({
+  id: row.id,
+  block_number: row.block_number,
+  block_size: row.block_size,
+  range: {
+    start: row.range_start,
+    end: row.range_end,
+  },
+  contacts: row.contacts as any,
+  status: row.status as any,
+  scheduled_at: row.scheduled_at || undefined,
+  created_at: row.created_at,
+  campaign_id: row.campaign_id || '',
+  sheet_meta: row.sheet_meta as any,
+  column_mapping: row.column_mapping as any,
+  sending_started_at: row.sending_started_at || null,
+});
+
 export const useBatches = () => {
   const { user } = useAuth();
   const [batches, setBatches] = useState<BatchInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const refetchTrigger = useRef(0);
+  const [refetchTick, setRefetchTick] = useState(0);
 
-  useEffect(() => {
-    if (!user) {
-      setBatches([]);
-      setLoading(false);
-      return;
-    }
+  const fetchBatchesWithBackoff = useCallback(async () => {
+    setLoading(true);
+    setFetchError(null);
 
-    const fetchBatches = async () => {
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < FETCH_BACKOFF_MS.length; attempt++) {
       try {
         const { data, error } = await supabase
           .from('batches')
@@ -25,34 +46,39 @@ export const useBatches = () => {
 
         if (error) throw error;
 
-        // Transform database format to BatchInfo format
-        const transformedBatches = (data || []).map((batch) => ({
-          id: batch.id,
-          block_number: batch.block_number,
-          block_size: batch.block_size,
-          range: {
-            start: batch.range_start,
-            end: batch.range_end,
-          },
-          contacts: batch.contacts as any,
-          status: batch.status as any,
-          scheduled_at: batch.scheduled_at || undefined,
-          created_at: batch.created_at,
-          campaign_id: batch.campaign_id || '',
-          sheet_meta: batch.sheet_meta as any,
-          column_mapping: batch.column_mapping as any,
-        }));
-
-        setBatches(transformedBatches);
-      } catch (error) {
-        console.error('Error fetching batches:', error);
-        toast.error('Erro ao carregar lotes');
-      } finally {
+        setBatches((data || []).map(mapRowToBatch));
+        setFetchError(null);
         setLoading(false);
+        return;
+      } catch (err) {
+        lastError = err;
+        console.error(`Error fetching batches (attempt ${attempt + 1}):`, err);
+        if (attempt < FETCH_BACKOFF_MS.length - 1) {
+          await new Promise((r) => setTimeout(r, FETCH_BACKOFF_MS[attempt]));
+        }
       }
-    };
+    }
 
-    fetchBatches();
+    const message = lastError instanceof Error ? lastError.message : 'Erro ao carregar lotes';
+    setBatches([]);
+    setFetchError(message);
+    setLoading(false);
+    toast.error('Erro ao carregar lotes');
+  }, []);
+
+  const refetch = useCallback(() => {
+    refetchTrigger.current += 1;
+    setRefetchTick((t) => t + 1);
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setBatches([]);
+      setLoading(false);
+      return;
+    }
+
+    fetchBatchesWithBackoff();
 
     // Real-time subscription
     const channel = supabase
@@ -67,44 +93,11 @@ export const useBatches = () => {
         },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            const newBatch = {
-              id: payload.new.id,
-              block_number: payload.new.block_number,
-              block_size: payload.new.block_size,
-              range: {
-                start: payload.new.range_start,
-                end: payload.new.range_end,
-              },
-              contacts: payload.new.contacts as any,
-              status: payload.new.status as any,
-              scheduled_at: payload.new.scheduled_at || undefined,
-              created_at: payload.new.created_at,
-              campaign_id: payload.new.campaign_id || '',
-              sheet_meta: payload.new.sheet_meta as any,
-              column_mapping: payload.new.column_mapping as any,
-            };
-            setBatches((prev) => [newBatch, ...prev]);
+            setBatches((prev) => [mapRowToBatch(payload.new), ...prev]);
           } else if (payload.eventType === 'UPDATE') {
-            const updatedBatch = {
-              id: payload.new.id,
-              block_number: payload.new.block_number,
-              block_size: payload.new.block_size,
-              range: {
-                start: payload.new.range_start,
-                end: payload.new.range_end,
-              },
-              contacts: payload.new.contacts as any,
-              status: payload.new.status as any,
-              scheduled_at: payload.new.scheduled_at || undefined,
-              created_at: payload.new.created_at,
-              campaign_id: payload.new.campaign_id || '',
-              sheet_meta: payload.new.sheet_meta as any,
-              column_mapping: payload.new.column_mapping as any,
-            };
+            const updated = mapRowToBatch(payload.new);
             setBatches((prev) =>
-              prev.map((b) =>
-                b.id === payload.new.id ? updatedBatch : b
-              )
+              prev.map((b) => (b.id === payload.new.id ? updated : b))
             );
           } else if (payload.eventType === 'DELETE') {
             setBatches((prev) => prev.filter((b) => b.id !== payload.old.id));
@@ -116,7 +109,7 @@ export const useBatches = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, fetchBatchesWithBackoff, refetchTick]);
 
   const addBatch = useCallback(async (batch: BatchInfo) => {
     if (!user) return;
@@ -156,7 +149,14 @@ export const useBatches = () => {
 
     try {
       const updateData: any = {};
-      if (updates.status) updateData.status = updates.status;
+      if (updates.status) {
+        updateData.status = updates.status;
+        if (updates.status === 'sending') {
+          updateData.sending_started_at = new Date().toISOString();
+        } else if (updates.status === 'sent' || updates.status === 'error' || updates.status === 'ready') {
+          updateData.sending_started_at = null;
+        }
+      }
       if (updates.scheduled_at !== undefined) updateData.scheduled_at = updates.scheduled_at;
 
       const { error } = await supabase
@@ -187,7 +187,6 @@ export const useBatches = () => {
 
       if (error) throw error;
 
-      // Manual state update
       setBatches((prev) => prev.filter((b) => b.id !== id));
 
       toast.success('Lote excluído');
@@ -201,6 +200,8 @@ export const useBatches = () => {
   return {
     batches,
     loading,
+    fetchError,
+    refetch,
     addBatch,
     updateBatch,
     deleteBatch,

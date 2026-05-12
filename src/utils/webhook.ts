@@ -2,6 +2,8 @@ import { WebhookPayload, BatchInfo, ColumnMapping, SheetMeta, Campaign } from '@
 
 export { testWebhook } from './webhookTest';
 
+const WEBHOOK_TIMEOUT_MS = 30_000;
+
 export const sendToWebhook = async (
   batch: BatchInfo,
   mapping: ColumnMapping,
@@ -32,14 +34,18 @@ export const sendToWebhook = async (
     contacts: batch.contacts,
   };
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
+
   try {
-    // Primeira tentativa: requisição normal com CORS
+    // Primeira tentativa: requisição normal com CORS + timeout
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -56,6 +62,14 @@ export const sendToWebhook = async (
       status: response.status,
     };
   } catch (error) {
+    // Timeout via AbortController
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      return {
+        success: false,
+        error: 'Timeout: webhook não respondeu em 30s',
+      };
+    }
+
     // Se falhar por CORS, tenta com modo no-cors
     if (error instanceof TypeError && error.message.includes('fetch')) {
       try {
@@ -68,6 +82,8 @@ export const sendToWebhook = async (
           body: JSON.stringify(payload),
         });
 
+        // TODO(cors): retornar { success:false, error:'Resposta opaca (no-cors)...' }
+        // após confirmarmos que o webhook n8n responde com Access-Control-Allow-Origin
         // Com no-cors, não conseguimos ler a resposta, mas assumimos sucesso se não houver erro
         return {
           success: true,
@@ -85,5 +101,7 @@ export const sendToWebhook = async (
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido ao enviar',
     };
+  } finally {
+    clearTimeout(timeoutId);
   }
 };

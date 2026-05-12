@@ -1,0 +1,1 @@
+ALTER TABLE public.batches ADD COLUMN IF NOT EXISTS sending_started_at timestamptz NULL;

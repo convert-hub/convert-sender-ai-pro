@@ -67,6 +67,7 @@ export interface BatchInfo {
   campaign_id: string;
   sheet_meta?: SheetMeta;
   column_mapping?: ColumnMapping;
+  sending_started_at?: string | null;
 }
 
 export interface DispatchHistory {
