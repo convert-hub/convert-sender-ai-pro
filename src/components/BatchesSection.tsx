@@ -279,35 +279,6 @@ export const BatchesSection = () => {
     }
   };
 
-  // Recovery passivo: blocos travados em "sending" há mais de SENDING_TIMEOUT_MIN
-  const recoveryDoneRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (loading) return;
-    const cutoffMs = SENDING_TIMEOUT_MIN * 60 * 1000;
-    const now = Date.now();
-
-    batches.forEach(async (b) => {
-      if (b.status !== 'sending') return;
-      if (recoveryDoneRef.current.has(b.id)) return;
-      const startedAt = b.sending_started_at ? new Date(b.sending_started_at).getTime() : null;
-      if (!startedAt) return;
-      if (now - startedAt < cutoffMs) return;
-
-      recoveryDoneRef.current.add(b.id);
-      try {
-        await updateBatch(b.id, { status: 'error' });
-        await addHistoryItem({
-          block_number: b.block_number,
-          contacts_count: b.contacts.length,
-          status: 'error',
-          error_message: `Envio interrompido: sem confirmação após ${SENDING_TIMEOUT_MIN} minutos`,
-        });
-      } catch (err) {
-        console.error('Recovery failed for batch', b.id, err);
-        recoveryDoneRef.current.delete(b.id);
-      }
-    });
-  }, [batches, loading, updateBatch, addHistoryItem]);
 
   const handleScheduleBatch = (batchId: string) => {
     const batch = batches.find(b => b.id === batchId);
