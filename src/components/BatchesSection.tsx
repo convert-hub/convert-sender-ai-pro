@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+
+const SENDING_TIMEOUT_MIN = 10;
 import { useBatches } from '@/hooks/useBatches';
 import { useHistory } from '@/hooks/useHistory';
 import { useUserSettings } from '@/hooks/useUserSettings';
