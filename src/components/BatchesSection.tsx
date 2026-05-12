@@ -156,46 +156,68 @@ export const BatchesSection = () => {
 
       await updateBatch(batch.id, { status: 'sending' });
 
-      // 3. Tentar enviar
-      const result = await sendToWebhook(batch, batchMapping, batchSheetMeta, campaign, settings?.webhook_url || '');
+      try {
+        // 3. Tentar enviar
+        const result = await sendToWebhook(batch, batchMapping, batchSheetMeta, campaign, settings?.webhook_url || '');
 
-      if (result.success) {
-        // 4. SÓ CONFIRMA disparo se envio foi bem-sucedido
-        await confirmDailyDispatch(batch.contacts.length);
-        
-        await updateBatch(batch.id, { status: 'sent' });
+        if (result.success) {
+          // 4. SÓ CONFIRMA disparo se envio foi bem-sucedido
+          await confirmDailyDispatch(batch.contacts.length);
+          
+          await updateBatch(batch.id, { status: 'sent' });
 
-        await addHistoryItem({
-          block_number: batch.block_number,
-          contacts_count: batch.contacts.length,
-          status: 'success',
-          response_status: result.status,
-        });
+          await addHistoryItem({
+            block_number: batch.block_number,
+            contacts_count: batch.contacts.length,
+            status: 'success',
+            response_status: result.status,
+          });
 
-        await incrementStats('batches_sent', 1);
+          await incrementStats('batches_sent', 1);
 
-        // Abrir popup de sucesso ao invés de toast
-        setSuccessBatchInfo({
-          blockNumber: batch.block_number,
-          contactsCount: batch.contacts.length,
-          remaining: limitCheck.remaining - batch.contacts.length,
-          limit: limitCheck.limit,
-        });
-        setSuccessDialogOpen(true);
-      } else {
-        await updateBatch(batch.id, { status: 'error' });
+          // Abrir popup de sucesso ao invés de toast
+          setSuccessBatchInfo({
+            blockNumber: batch.block_number,
+            contactsCount: batch.contacts.length,
+            remaining: limitCheck.remaining - batch.contacts.length,
+            limit: limitCheck.limit,
+          });
+          setSuccessDialogOpen(true);
+        } else {
+          await updateBatch(batch.id, { status: 'error' });
 
-        await addHistoryItem({
-          block_number: batch.block_number,
-          contacts_count: batch.contacts.length,
-          status: 'error',
-          response_status: result.status,
-          error_message: result.error,
-        });
+          await addHistoryItem({
+            block_number: batch.block_number,
+            contacts_count: batch.contacts.length,
+            status: 'error',
+            response_status: result.status,
+            error_message: result.error,
+          });
 
+          toast({
+            title: 'Erro no envio',
+            description: result.error || 'Falha ao enviar disparo',
+            variant: 'destructive',
+          });
+        }
+      } catch (sendError) {
+        // Falha inesperada após marcar como sending → reconciliar status
+        const message = sendError instanceof Error ? sendError.message : 'Erro inesperado';
+        console.error('Unexpected error during batch send:', sendError);
+        try {
+          await updateBatch(batch.id, { status: 'error' });
+          await addHistoryItem({
+            block_number: batch.block_number,
+            contacts_count: batch.contacts.length,
+            status: 'error',
+            error_message: message,
+          });
+        } catch (recoveryError) {
+          console.error('Failed to mark batch as error after send failure:', recoveryError);
+        }
         toast({
-          title: 'Erro no envio',
-          description: result.error || 'Falha ao enviar disparo',
+          title: 'Erro inesperado',
+          description: message,
           variant: 'destructive',
         });
       }
@@ -208,6 +230,36 @@ export const BatchesSection = () => {
       });
     }
   };
+
+  // Recovery passivo: blocos travados em "sending" há mais de SENDING_TIMEOUT_MIN
+  const recoveryDoneRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (loading) return;
+    const cutoffMs = SENDING_TIMEOUT_MIN * 60 * 1000;
+    const now = Date.now();
+
+    batches.forEach(async (b) => {
+      if (b.status !== 'sending') return;
+      if (recoveryDoneRef.current.has(b.id)) return;
+      const startedAt = b.sending_started_at ? new Date(b.sending_started_at).getTime() : null;
+      if (!startedAt) return;
+      if (now - startedAt < cutoffMs) return;
+
+      recoveryDoneRef.current.add(b.id);
+      try {
+        await updateBatch(b.id, { status: 'error' });
+        await addHistoryItem({
+          block_number: b.block_number,
+          contacts_count: b.contacts.length,
+          status: 'error',
+          error_message: `Envio interrompido: sem confirmação após ${SENDING_TIMEOUT_MIN} minutos`,
+        });
+      } catch (err) {
+        console.error('Recovery failed for batch', b.id, err);
+        recoveryDoneRef.current.delete(b.id);
+      }
+    });
+  }, [batches, loading, updateBatch, addHistoryItem]);
 
   const handleScheduleBatch = (batchId: string) => {
     const batch = batches.find(b => b.id === batchId);
