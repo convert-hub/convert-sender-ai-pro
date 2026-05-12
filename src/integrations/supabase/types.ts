@@ -26,6 +26,7 @@ export type Database = {
           range_end: number
           range_start: number
           scheduled_at: string | null
+          sending_started_at: string | null
           sheet_meta: Json | null
           status: string
           user_id: string
@@ -41,6 +42,7 @@ export type Database = {
           range_end: number
           range_start: number
           scheduled_at?: string | null
+          sending_started_at?: string | null
           sheet_meta?: Json | null
           status?: string
           user_id: string
@@ -56,6 +58,7 @@ export type Database = {
           range_end?: number
           range_start?: number
           scheduled_at?: string | null
+          sending_started_at?: string | null
           sheet_meta?: Json | null
           status?: string
           user_id?: string
